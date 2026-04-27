@@ -1,0 +1,46 @@
+{
+  "name": "discord-account-manager",
+  "private": true,
+  "version": "1.5.6",
+  "description": "A powerful and user-friendly Discord account manager built with Electron.js.",
+  "main": "electron/main.js",
+  "scripts": {
+    "web": "node server.js",
+    "start": "electron .",
+    "package": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "axios": "^1.6.7",
+    "discord.js-selfbot-v13": "^3.1.4",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "electron": "^29.4.6",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.discord.accoun.tmanager",
+    "productName": "Discord Account Manager",
+    "win": {
+      "target": "nsis",
+      "icon": "src/icons/app-icon.png"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      "resources/**"
+    ]
+  },
+  "author": "Ahmed",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://discord.gg/ens"
+  },
+  "bugs": {
+    "url": "https://discord.gg/ens"
+  },
+  "homepage": "https://discord.gg/ens"
+}
