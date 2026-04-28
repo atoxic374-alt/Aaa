@@ -360,6 +360,7 @@ ipcMain.handle('discord:getDMs', async () => {
       .filter(channel => channel.type === 'DM')
       .map(dm => ({
         id: dm.id,
+        userId: dm.recipient?.id || null,
         username: dm.recipient?.username || 'Unknown User',
         displayName: dm.recipient?.globalName || dm.recipient?.username || 'Unknown User',
         avatar: dm.recipient?.avatarURL() || '/discord.png'
@@ -614,7 +615,13 @@ ipcMain.handle('discord:getServerMembers', async (_, serverId, channelId) => {
     if (channelId && channelId !== 'all') {
       const channel = guild.channels.cache.get(channelId);
       if (!channel) return { success: false, error: 'Channel not found' };
-      rawMembers = Array.from(channel.members.values());
+      rawMembers = Array.from(guild.members.cache.values()).filter(member => {
+        try {
+          return channel.permissionsFor(member)?.has('VIEW_CHANNEL');
+        } catch {
+          return false;
+        }
+      });
     } else {
       rawMembers = Array.from(guild.members.cache.values());
     }

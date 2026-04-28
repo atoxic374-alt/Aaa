@@ -88,9 +88,9 @@ export class GroupManager {
     await copyToClipboard(id);
   }
 
-  async deleteMessages(groupId, groupName, oldestFirst = false, skipRefresh = false) {
-    if (this.isDeleting) return;
-    this.isDeleting = true;
+  async deleteMessages(groupId, groupName, oldestFirst = false, skipRefresh = false, bypassDeleteLock = false) {
+    if (this.isDeleting && !bypassDeleteLock) return;
+    if (!bypassDeleteLock) this.isDeleting = true;
 
     try {
       await deleteDMMessages({
@@ -98,7 +98,7 @@ export class GroupManager {
         username: groupName,
         electronAPI: window.electronAPI,
         onComplete: () => {
-          this.isDeleting = false;
+          if (!bypassDeleteLock) this.isDeleting = false;
           if (!skipRefresh) {
             this.refreshGroupsList();
           }
@@ -109,7 +109,7 @@ export class GroupManager {
       });
     } catch (error) {
       console.error('Failed to delete messages:', error);
-      this.isDeleting = false;
+      if (!bypassDeleteLock) this.isDeleting = false;
     }
   }
 
@@ -166,7 +166,7 @@ export class GroupManager {
       const groupName = groupItem.dataset.name;
       
       try {
-        await this.deleteMessages(groupId, groupName, false, true);
+        await this.deleteMessages(groupId, groupName, false, true, true);
         completed++;
         updateProgress(completed);
       } catch (error) {
