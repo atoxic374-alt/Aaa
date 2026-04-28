@@ -25,7 +25,7 @@ export class DMManager {
         </div>
         <div id="dmsList">
           ${dms.map(dm => `
-            <div class="list-item" data-id="${dm.id}" data-username="${dm.username}">
+            <div class="list-item" data-id="${dm.id}" data-user-id="${dm.userId || ''}" data-username="${dm.username}">
               <div class="list-item-left">
                 <input type="checkbox" class="dm-checkbox" onchange="window.dmManager.updateSelectedCount()">
                 <img src="${dm.avatar}" alt="${dm.username}">
@@ -143,8 +143,9 @@ export class DMManager {
   // ─── DM Sender ───────────────────────────────────────────────────────────────
 
   async showSendMessageModal() {
-    const selectedIds = Array.from(document.querySelectorAll('.dm-checkbox:checked'))
-      .map(cb => cb.closest('.list-item').dataset.id);
+    const selectedUserIds = Array.from(document.querySelectorAll('.dm-checkbox:checked'))
+      .map(cb => cb.closest('.list-item').dataset.userId)
+      .filter(Boolean);
 
     const servers = await window.electronAPI.getServers();
     const serverList = servers.success ? servers.servers : [];
@@ -158,15 +159,15 @@ export class DMManager {
         <span class="modal-label">Target</span>
         <div class="send-target-group">
           <button class="send-target-btn active" data-target="all">
-            All DMs <span class="target-count">(${this.currentDMs.length})</span>
+            Existing DM Contacts <span class="target-count">(${this.currentDMs.length})</span>
           </button>
-          <button class="send-target-btn${selectedIds.length === 0 ? ' send-target-disabled' : ''}"
+          <button class="send-target-btn${selectedUserIds.length === 0 ? ' send-target-disabled' : ''}"
             data-target="selected"
-            ${selectedIds.length === 0 ? 'disabled title="Select DMs from the list first"' : ''}>
-            Selected <span class="target-count">(${selectedIds.length})</span>
+            ${selectedUserIds.length === 0 ? 'disabled title="Select DMs from the list first"' : ''}>
+            Selected DM Contacts <span class="target-count">(${selectedUserIds.length})</span>
           </button>
           <button class="send-target-btn" data-target="server">
-            Server Members
+            All Members in Server
           </button>
         </div>
 
@@ -177,9 +178,9 @@ export class DMManager {
             ${serverList.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
           </select>
 
-          <span class="modal-label">Channel</span>
+          <span class="modal-label">Optional Member Filter</span>
           <select class="modal-select" id="channelSelect" disabled>
-            <option value="all">All Channels</option>
+            <option value="all">All Server Members</option>
           </select>
 
           <div id="memberCountBadge" style="display:none; margin-bottom:10px;">
@@ -222,7 +223,7 @@ export class DMManager {
     serverSelect.addEventListener('change', async () => {
       const serverId = serverSelect.value;
       if (!serverId) {
-        channelSelect.innerHTML = '<option value="all">All Channels</option>';
+        channelSelect.innerHTML = '<option value="all">All Server Members</option>';
         channelSelect.disabled = true;
         memberCountBadge.style.display = 'none';
         currentServerMembers = [];
@@ -239,7 +240,7 @@ export class DMManager {
         window.electronAPI.getServerMembers(serverId, 'all')
       ]);
 
-      channelSelect.innerHTML = '<option value="all">All Channels</option>';
+      channelSelect.innerHTML = '<option value="all">All Server Members</option>';
       if (chRes.success) {
         chRes.channels.forEach(ch => {
           const opt = document.createElement('option');
@@ -251,7 +252,7 @@ export class DMManager {
       channelSelect.disabled = false;
 
       currentServerMembers = memRes.success ? memRes.members : [];
-      memberCountText.textContent = `${currentServerMembers.length} members`;
+      memberCountText.textContent = `${currentServerMembers.length} target members`;
     });
 
     // Channel change → update member count
@@ -263,7 +264,7 @@ export class DMManager {
       memberCountText.textContent = 'Loading...';
       const memRes = await window.electronAPI.getServerMembers(serverId, channelId);
       currentServerMembers = memRes.success ? memRes.members : [];
-      memberCountText.textContent = `${currentServerMembers.length} members`;
+      memberCountText.textContent = `${currentServerMembers.length} target members`;
     });
 
     // Cancel
@@ -283,9 +284,9 @@ export class DMManager {
       let userIds = [];
 
       if (currentTarget === 'all') {
-        userIds = this.currentDMs.map(dm => dm.id);
+        userIds = this.currentDMs.map(dm => dm.userId).filter(Boolean);
       } else if (currentTarget === 'selected') {
-        userIds = selectedIds;
+        userIds = selectedUserIds;
       } else if (currentTarget === 'server') {
         if (!serverSelect.value) {
           serverSelect.style.borderColor = 'var(--danger)';
@@ -298,13 +299,13 @@ export class DMManager {
         const err = document.createElement('p');
         err.className = 'error';
         err.style.marginTop = '10px';
-        err.textContent = 'No targets found.';
+        err.textContent = 'No target members found.';
         modal.querySelector('.modal-content').appendChild(err);
         return;
       }
 
       modal.remove();
-      await this._startSending(userIds, message);
+      await this._startSending([...new Set(userIds)], message);
     });
   }
 
@@ -365,6 +366,9 @@ export class DMManager {
       btn.disabled = true;
     });
 
+    let dynamicDelayMs = 350;
+    let nextAllowedAt = Date.now();
+
     for (let i = 0; i < userIds.length; i++) {
       if (shouldStop) break;
 
@@ -375,35 +379,36 @@ export class DMManager {
       let retries = 0;
 
       while (!success && retries < 3 && !shouldStop) {
+        const now = Date.now();
+        if (now < nextAllowedAt) {
+          await this._sleep(nextAllowedAt - now);
+        }
+
         const result = await window.electronAPI.sendDM(userId, message);
 
         if (result.success) {
           success = true;
           sent++;
+          nextAllowedAt = Date.now() + dynamicDelayMs;
+          dynamicDelayMs = Math.max(250, Math.floor(dynamicDelayMs * 0.95));
         } else if (result.rateLimited) {
           retries++;
           const waitMs = result.retryAfter
-            ? Math.max(result.retryAfter * 1000, 5000) + 1000
-            : 6000;
+            ? Math.ceil(result.retryAfter * 1000) + 250
+            : 2000;
           statusEl.textContent = `Rate limited — waiting ${Math.ceil(waitMs / 1000)}s...`;
+          dynamicDelayMs = Math.min(2000, Math.floor(dynamicDelayMs * 1.35));
+          nextAllowedAt = Date.now() + waitMs;
           await this._sleep(waitMs);
         } else {
           retries++;
-          await this._sleep(2500);
+          nextAllowedAt = Date.now() + dynamicDelayMs;
+          await this._sleep(800);
         }
       }
 
       if (!success) failed++;
       updateUI();
-
-      if (!shouldStop) {
-        if ((i + 1) % 5 === 0 && i + 1 < total) {
-          statusEl.textContent = 'Short pause to protect rate limits...';
-          await this._sleep(3000);
-        } else {
-          await this._sleep(1200);
-        }
-      }
     }
 
     bar.style.width = '100%';
