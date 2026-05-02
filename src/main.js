@@ -4,6 +4,7 @@ import { DMManager } from './components/DMManager.js';
 import { ServerManager } from './components/ServerManager.js';
 import { FriendsManager } from './components/FriendsManager.js';
 import { GroupManager } from './components/GroupManager.js';
+import { TrueStudioManager } from './components/TrueStudioManager.js';
 import { showInfoModal } from './utils/ui.js';
 import { copyToClipboard } from './utils/clipboard.js';
 import { getFriendsList } from './utils/discord.js';
@@ -12,6 +13,7 @@ window.dmManager = new DMManager(document.getElementById('dms-page'));
 window.serverManager = new ServerManager(document.getElementById('servers-page'));
 window.friendsManager = new FriendsManager(document.getElementById('friends-page'));
 window.groupManager = new GroupManager(document.getElementById('groups-page'));
+window.trueStudioManager = new TrueStudioManager(document.getElementById('ts-page'));
 
 window.copyToClipboard = copyToClipboard;
 window.getFriendsList = getFriendsList;
@@ -69,6 +71,9 @@ function switchPage(pageId) {
       break;
     case 'groups':
       window.groupManager.refreshGroupsList();
+      break;
+    case 'ts':
+      window.trueStudioManager.init();
       break;
   }
 }

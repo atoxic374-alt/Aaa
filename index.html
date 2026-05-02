@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="src/styles/layout.css">
   <link rel="stylesheet" href="src/styles/titlebar.css">
   <link rel="stylesheet" href="src/styles/components.css">
+  <link rel="stylesheet" href="src/styles/truestudio.css">
 </head>
 <body>
   <div class="app-container">
@@ -76,6 +77,13 @@
             </svg>
             <span>Groups</span>
           </div>
+          <div class="nav-item hidden" data-page="ts">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+            <span>Bot-Studio</span>
+          </div>
         </div>
 
         <div class="user-profile" id="userProfile">
@@ -114,6 +122,7 @@
         <div class="page-container" id="servers-page"></div>
         <div class="page-container" id="dms-page"></div>
         <div class="page-container" id="groups-page"></div>
+        <div class="page-container" id="ts-page"></div>
       </div>
     </div>
   </div>

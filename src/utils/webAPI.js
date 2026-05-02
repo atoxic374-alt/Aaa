@@ -42,4 +42,19 @@ window.electronAPI = {
   leaveGroup:         (id)                    => api('POST',   `/discord/groups/${id}/leave`),
   getGroupMessages:   (id, before)            => api('GET',    `/discord/groups/${id}/messages${before ? `?before=${before}` : ''}`),
   deleteGroupMessage: (channelId, messageId)  => api('DELETE', `/discord/groups/${channelId}/messages/${messageId}`),
+
+  // TrueStudio (Bot-Studio) Endpoints
+  tsState:               () => api('GET', '/ts/state'),
+  tsSaveAccount:         (email, password, totpSecret) => api('POST', '/ts/accounts', { email, password, totpSecret }),
+  tsDeleteAccount:       (email) => api('DELETE', `/ts/accounts/${encodeURIComponent(email)}`),
+  tsTestAccount:         (email) => api('POST', '/ts/test-account', { email }),
+  tsLibrary:             (email) => api('GET', `/ts/library?email=${encodeURIComponent(email)}`),
+  tsResetBot:            (email, appId) => api('POST', '/ts/reset-bot', { email, appId }),
+  tsStart:               (email, rules, count, prefix, waitMinutes) => api('POST', '/ts/start', { email, rules, count, prefix, waitMinutes }),
+  tsStop:                () => api('POST', '/ts/stop'),
+  tsResolveCaptcha:      (id, token) => api('POST', '/ts/captcha-resolve', { id, token }),
+  tsCancelCaptcha:       (id) => api('POST', '/ts/captcha-cancel', { id }),
+  tsCaptchaSettings:     () => api('GET', '/ts/captcha-settings'),
+  tsSaveCaptchaSettings: (settings) => api('POST', '/ts/captcha-settings', { settings }),
+  tsExportUrl:           (format) => `/api/ts/export?format=${format}`,
 };
