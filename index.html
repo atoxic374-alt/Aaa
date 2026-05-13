@@ -6,11 +6,12 @@
   <title>Discord Manager</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="src/styles/layout.css">
   <link rel="stylesheet" href="src/styles/titlebar.css">
   <link rel="stylesheet" href="src/styles/components.css">
   <link rel="stylesheet" href="src/styles/multidm.css">
+  <link rel="stylesheet" href="src/styles/blast.css">
 </head>
 <body>
   <div class="app-container">
@@ -49,8 +50,9 @@
       <nav class="nav-sidebar">
         <div class="nav-items">
 
+          <!-- Login -->
           <div class="nav-item active" data-page="login" id="loginNavItem">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
               <polyline points="10 17 15 12 10 7"/>
               <line x1="15" y1="12" x2="3" y2="12"/>
@@ -58,53 +60,72 @@
             <span>Login</span>
           </div>
 
+          <!-- Friends -->
           <div class="nav-item hidden" data-page="friends">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
               <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
             <span>Friends</span>
           </div>
 
+          <!-- Servers -->
           <div class="nav-item hidden" data-page="servers">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="2" y="2" width="20" height="8" rx="2"/>
+              <rect x="2" y="14" width="20" height="8" rx="2"/>
               <line x1="6" y1="6" x2="6.01" y2="6"/>
               <line x1="6" y1="18" x2="6.01" y2="18"/>
             </svg>
             <span>Servers</span>
           </div>
 
+          <!-- DMs -->
           <div class="nav-item hidden" data-page="dms">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
             <span>DMs</span>
           </div>
 
+          <!-- Groups -->
           <div class="nav-item hidden" data-page="groups">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
               <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
             <span>Groups</span>
+          </div>
+
+          <!-- Divider -->
+          <div style="height:1px;background:var(--border);margin:6px 8px;border-radius:1px;" class="hidden nav-divider"></div>
+
+          <!-- DM Blast -->
+          <div class="nav-item hidden" data-page="dmblast">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              <line x1="9" y1="10" x2="15" y2="10"/>
+              <line x1="9" y1="14" x2="13" y2="14"/>
+            </svg>
+            <span>DM Blast</span>
+          </div>
+
+          <!-- Server Blast -->
+          <div class="nav-item hidden" data-page="serverblast">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            <span>Server Blast</span>
           </div>
 
         </div>
 
         <!-- User Profile -->
         <div class="user-profile" id="userProfile">
-          <div class="user-avatar">
-            <span id="userInitial"></span>
-          </div>
-          <div class="user-info">
-            <div class="user-name" id="userName"></div>
-          </div>
+          <div class="user-avatar"><span id="userInitial"></span></div>
+          <div class="user-info"><div class="user-name" id="userName"></div></div>
           <button class="disconnect-btn" id="disconnectBtn">Out</button>
         </div>
       </nav>
@@ -130,8 +151,6 @@
               </div>
               <div id="status"></div>
               <div class="token-management" id="tokenManagement"></div>
-
-              <!-- Support Links -->
               <div class="login-support-links">
                 <a class="login-support-link" id="discordSupportLink" href="#">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -141,8 +160,8 @@
                 </a>
                 <span class="login-support-sep">·</span>
                 <a class="login-support-link" id="instaSupportLink" href="#">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect x="2" y="2" width="20" height="20" rx="5"/>
                     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
                     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
                   </svg>
@@ -153,11 +172,13 @@
           </div>
         </div>
 
-        <!-- Other Pages -->
+        <!-- Pages -->
         <div class="page-container" id="friends-page"></div>
         <div class="page-container" id="servers-page"></div>
         <div class="page-container" id="dms-page"></div>
         <div class="page-container" id="groups-page"></div>
+        <div class="page-container" id="dmblast-page"></div>
+        <div class="page-container" id="serverblast-page"></div>
 
       </div>
     </div>
@@ -165,15 +186,12 @@
 
   <script src="src/utils/webAPI.js"></script>
   <script type="module" src="src/main.js"></script>
-
   <script>
     document.getElementById('discordSupportLink').addEventListener('click', e => {
-      e.preventDefault();
-      window.electronAPI.openExternal('https://discord.gg/ens');
+      e.preventDefault(); window.electronAPI.openExternal('https://discord.gg/ens');
     });
     document.getElementById('instaSupportLink').addEventListener('click', e => {
-      e.preventDefault();
-      window.electronAPI.openExternal('https://instagram.com/a_13qn');
+      e.preventDefault(); window.electronAPI.openExternal('https://instagram.com/a_13qn');
     });
   </script>
 </body>
