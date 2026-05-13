@@ -3,9 +3,6 @@ const path    = require('path');
 const fs      = require('fs');
 const axios   = require('axios');
 const { Client }           = require('discord.js-selfbot-v13');
-const { getStore }         = require('./lib/jsonStore');
-const { tryDecrypt }       = require('./lib/crypto');
-const { withUser, currentUserId, clientsPool, activeRef, scopedStore } = require('./lib/userScope');
 const { createJob, validateAccounts } = require('./lib/multiDM');
 
 const app  = express();
@@ -17,11 +14,6 @@ app.use(express.static(path.join(__dirname)));
 // ── Data paths ────────────────────────────────────────────────────────────────
 const tokensPath = path.join(__dirname, 'saved_tokens.json');
 if (!fs.existsSync(tokensPath)) fs.writeFileSync(tokensPath, '[]', 'utf8');
-
-const dataPath  = path.join(__dirname, 'app_data.json');
-const dataStore = getStore(dataPath, { tsAccounts: [], tsLastNumber: 0 });
-function ensureData() { return dataStore.read(); }
-function writeData(d) { dataStore.write(d); }
 
 const checkpointDir = path.join(__dirname, 'data', 'mdm_checkpoints');
 fs.mkdirSync(checkpointDir, { recursive: true });
@@ -78,72 +70,6 @@ app.delete('/api/tokens/:name', (req, res) => {
     fs.writeFileSync(tokensPath, JSON.stringify(tokens, null, 2));
     res.json({ success: true });
   } catch (e) { res.json({ success: false, error: e.message }); }
-});
-
-// ── TrueStudio ────────────────────────────────────────────────────────────────
-const ts = require('./lib/trueStudio');
-const _tsSessions = new Map();
-function tsSession() {
-  const uid = currentUserId();
-  if (!_tsSessions.has(uid)) _tsSessions.set(uid, ts.makeSession());
-  return _tsSessions.get(uid);
-}
-function tsSnapshot() {
-  const s = tsSession();
-  return {
-    state: s.state, account: s.account, rules: s.rules, total: s.total, done: s.done,
-    failed: s.failed, current: s.current, teamId: s.teamId, teamName: s.teamName,
-    waitUntilTs: s.waitUntilTs, waitTotalMs: s.waitTotalMs, startedAt: s.startedAt,
-    finishedAt: s.finishedAt, bots: (s.bots || []).map(b => ({ name: b.name, appId: b.appId, hasToken: !!b.token })),
-    lastError: s.lastError, log: s.log.slice(-50), pendingCaptcha: s.pendingCaptcha
-  };
-}
-function pushTsEvent(type, payload = {}) {
-  sseBroadcast(type, { ...payload, snapshot: tsSnapshot(), _uid: currentUserId() });
-}
-function tsLog(level, msg) {
-  const s = tsSession();
-  s.log.push({ ts: Date.now(), level, msg: String(msg).slice(0, 500) });
-  pushTsEvent('ts_log', { entry: s.log[s.log.length - 1] });
-}
-function tsAccountsPublic() {
-  const d = ensureData();
-  return (d.tsAccounts || []).map(a => ({
-    email: a.email, hasPassword: !!a.password, hasTotp: !!a.totpSecret, addedAt: a.addedAt || 0, verify: a.verify || null
-  }));
-}
-
-app.get('/api/ts/state',           (req, res) => res.json({ success: true, snapshot: tsSnapshot(), accounts: tsAccountsPublic() }));
-app.post('/api/ts/accounts',       (req, res) => {
-  const { email, password, totpSecret } = req.body;
-  const d = ensureData();
-  if (!d.tsAccounts) d.tsAccounts = [];
-  const existing = d.tsAccounts.find(a => a.email === email);
-  if (existing) { existing.password = password; existing.totpSecret = totpSecret; }
-  else d.tsAccounts.push({ email, password, totpSecret, addedAt: Date.now() });
-  writeData(d);
-  res.json({ success: true, accounts: tsAccountsPublic() });
-});
-app.delete('/api/ts/accounts/:email', (req, res) => {
-  const d = ensureData();
-  d.tsAccounts = (d.tsAccounts || []).filter(a => a.email !== req.params.email);
-  writeData(d);
-  res.json({ success: true, accounts: tsAccountsPublic() });
-});
-app.post('/api/ts/start', async (req, res) => {
-  const s = tsSession();
-  const { email, rules, count, prefix, waitMinutes } = req.body;
-  Object.assign(s, ts.makeSession());
-  s.account = email; s.rules = rules; s.total = count; s.state = 'running';
-  pushTsEvent('ts_progress');
-  res.json({ success: true, snapshot: tsSnapshot() });
-  tsLog('info', `Starting session for ${email}...`);
-});
-app.post('/api/ts/stop', (req, res) => {
-  const s = tsSession();
-  s.state = 'cancelled';
-  pushTsEvent('ts_progress');
-  res.json({ success: true, snapshot: tsSnapshot() });
 });
 
 // ── Discord ───────────────────────────────────────────────────────────────────
