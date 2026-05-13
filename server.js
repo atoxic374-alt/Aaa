@@ -6,6 +6,7 @@ const { Client } = require('discord.js-selfbot-v13');
 const { getStore } = require('./lib/jsonStore');
 const { tryDecrypt } = require('./lib/crypto');
 const { withUser, currentUserId } = require('./lib/userScope');
+const { createJob } = require('./lib/multiDM');
 
 const app = express();
 const PORT = 5000;
@@ -197,6 +198,61 @@ app.get('/api/discord/groups', async (req, res) => {
     }));
     res.json({ success: true, groups });
   } catch (e) { res.json({ success: false, error: e.message }); }
+});
+
+// ── Multi-DM (multi-account blast) ───────────────────────────────────────────
+const _multiDMJobs = new Map();
+const _multiDMStreams = new Map();
+
+function _broadcastMultiDM(jobId, data) {
+  const clients = _multiDMStreams.get(jobId);
+  if (!clients) return;
+  const str = `data: ${JSON.stringify(data)}\n\n`;
+  for (const res of clients) {
+    try { res.write(str); } catch (e) {}
+  }
+}
+
+app.get('/api/multi-dm/stream/:jobId', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const { jobId } = req.params;
+  if (!_multiDMStreams.has(jobId)) _multiDMStreams.set(jobId, new Set());
+  _multiDMStreams.get(jobId).add(res);
+
+  const job = _multiDMJobs.get(jobId);
+  if (job) res.write(`data: ${JSON.stringify({ type: 'state', ...job.getState() })}\n\n`);
+
+  req.on('close', () => { _multiDMStreams.get(jobId)?.delete(res); });
+});
+
+app.post('/api/multi-dm/start', async (req, res) => {
+  const { accountList, userIds, message, images } = req.body;
+  if (!accountList?.length) return res.json({ success: false, error: 'No accounts provided' });
+  if (!userIds?.length)     return res.json({ success: false, error: 'No users provided' });
+  if (!message?.trim())     return res.json({ success: false, error: 'No message provided' });
+  if (images && images.length > 10) return res.json({ success: false, error: 'Max 10 images allowed' });
+
+  const jobId = `mdm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const uniqueIds = [...new Set(userIds)];
+  const job = createJob(jobId, accountList, uniqueIds, message, images || []);
+  _multiDMJobs.set(jobId, job);
+
+  res.json({ success: true, jobId, total: uniqueIds.length });
+
+  job.start(data => _broadcastMultiDM(jobId, data)).catch(e => {
+    console.error('MultiDM error:', e);
+    _broadcastMultiDM(jobId, { type: 'error', error: e.message });
+  });
+});
+
+app.post('/api/multi-dm/stop/:jobId', (req, res) => {
+  const job = _multiDMJobs.get(req.params.jobId);
+  if (job) { job.stop(); res.json({ success: true }); }
+  else res.json({ success: false, error: 'Job not found' });
 });
 
 app.listen(PORT, '0.0.0.0', () => console.log(`Discord Account Manager → http://localhost:${PORT}`));

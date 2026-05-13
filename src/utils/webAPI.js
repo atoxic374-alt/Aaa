@@ -43,6 +43,11 @@ window.electronAPI = {
   getGroupMessages:   (id, before)            => api('GET',    `/discord/groups/${id}/messages${before ? `?before=${before}` : ''}`),
   deleteGroupMessage: (channelId, messageId)  => api('DELETE', `/discord/groups/${channelId}/messages/${messageId}`),
 
+  // Multi-DM (multi-account server blast)
+  multiDMStart: (accountList, userIds, message, images) =>
+    api('POST', '/multi-dm/start', { accountList, userIds, message, images }),
+  multiDMStop:  (jobId) => api('POST', `/multi-dm/stop/${jobId}`),
+
   // TrueStudio (Bot-Studio) Endpoints
   tsState:               () => api('GET', '/ts/state'),
   tsSaveAccount:         (email, password, totpSecret) => api('POST', '/ts/accounts', { email, password, totpSecret }),
