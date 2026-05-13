@@ -18,38 +18,42 @@ window.electronAPI = {
   downloadUpdate: (url) => { window.open(url, '_blank'); },
   openExternal:   (url) => { window.open(url, '_blank'); },
 
-  connectDiscord: (token)    => api('POST',   '/discord/connect', { token }),
+  connectDiscord: (token) => api('POST', '/discord/connect', { token }),
 
-  getFriends:    ()         => api('GET',    '/discord/friends'),
-  deleteFriend:  (id)       => api('DELETE', `/discord/friends/${id}`),
+  getFriends:   () => api('GET', '/discord/friends'),
+  deleteFriend: (id) => api('DELETE', `/discord/friends/${id}`),
 
-  getServers:    ()         => api('GET',    '/discord/servers'),
-  leaveServer:   (id)       => api('POST',   `/discord/servers/${id}/leave`),
-  muteServer:    (id)       => api('POST',   `/discord/servers/${id}/mute`),
-  unmuteServer:  (id)       => api('POST',   `/discord/servers/${id}/unmute`),
-  readAll:       ()         => api('POST',   '/discord/servers/readall'),
+  getServers:    () => api('GET', '/discord/servers'),
+  leaveServer:   (id) => api('POST', `/discord/servers/${id}/leave`),
+  muteServer:    (id) => api('POST', `/discord/servers/${id}/mute`),
+  unmuteServer:  (id) => api('POST', `/discord/servers/${id}/unmute`),
+  readAll:       () => api('POST', '/discord/servers/readall'),
 
-  getServerChannels: (id)              => api('GET', `/discord/servers/${id}/channels`),
-  getServerMembers:  (id, channelId)   => api('GET', `/discord/servers/${id}/members${channelId && channelId !== 'all' ? `?channel=${channelId}` : '?channel=all'}`),
+  getServerChannels: (id)            => api('GET', `/discord/servers/${id}/channels`),
+  getServerMembers:  (id, channelId) => api('GET', `/discord/servers/${id}/members${channelId && channelId !== 'all' ? `?channel=${channelId}` : '?channel=all'}`),
 
-  getDMs:          ()                       => api('GET',    '/discord/dms'),
-  getDMMessages:   (id, before)             => api('GET',    `/discord/dms/${id}/messages${before ? `?before=${before}` : ''}`),
-  deleteDMMessage: (channelId, messageId)   => api('DELETE', `/discord/dms/${channelId}/messages/${messageId}`),
-  closeDM:         (id)                     => api('POST',   `/discord/dms/${id}/close`),
-  sendDM:          (userId, message)        => api('POST',   '/discord/dms/send', { userId, message }),
+  getDMs:          () => api('GET', '/discord/dms'),
+  getDMMessages:   (id, before) => api('GET', `/discord/dms/${id}/messages${before ? `?before=${before}` : ''}`),
+  deleteDMMessage: (channelId, messageId) => api('DELETE', `/discord/dms/${channelId}/messages/${messageId}`),
+  closeDM:         (id) => api('POST', `/discord/dms/${id}/close`),
+  sendDM:          (userId, message) => api('POST', '/discord/dms/send', { userId, message }),
 
-  getGroups:          ()                      => api('GET',    '/discord/groups'),
-  leaveGroup:         (id)                    => api('POST',   `/discord/groups/${id}/leave`),
-  getGroupMessages:   (id, before)            => api('GET',    `/discord/groups/${id}/messages${before ? `?before=${before}` : ''}`),
-  deleteGroupMessage: (channelId, messageId)  => api('DELETE', `/discord/groups/${channelId}/messages/${messageId}`),
+  getGroups:          () => api('GET', '/discord/groups'),
+  leaveGroup:         (id) => api('POST', `/discord/groups/${id}/leave`),
+  getGroupMessages:   (id, before) => api('GET', `/discord/groups/${id}/messages${before ? `?before=${before}` : ''}`),
+  deleteGroupMessage: (channelId, messageId) => api('DELETE', `/discord/groups/${channelId}/messages/${messageId}`),
 
-  // Multi-DM (multi-account server blast)
-  multiDMStart:    (accountList, userIds, message, images) =>
-    api('POST', '/multi-dm/start', { accountList, userIds, message, images }),
+  // Multi-DM
+  multiDMStart:    (accountList, userIds, message, images, speedMode) =>
+    api('POST', '/multi-dm/start', { accountList, userIds, message, images, speedMode }),
   multiDMStop:     (jobId) => api('POST', `/multi-dm/stop/${jobId}`),
+  multiDMPause:    (jobId) => api('POST', `/multi-dm/pause/${jobId}`),
+  multiDMResume:   (jobId) => api('POST', `/multi-dm/resume/${jobId}`),
   multiDMValidate: (accountList) => api('POST', '/multi-dm/validate', { accountList }),
+  multiDMState:    (jobId) => api('GET', `/multi-dm/state/${jobId}`),
+  multiDMJobs:     () => api('GET', '/multi-dm/jobs'),
 
-  // TrueStudio (Bot-Studio) Endpoints
+  // TrueStudio
   tsState:               () => api('GET', '/ts/state'),
   tsSaveAccount:         (email, password, totpSecret) => api('POST', '/ts/accounts', { email, password, totpSecret }),
   tsDeleteAccount:       (email) => api('DELETE', `/ts/accounts/${encodeURIComponent(email)}`),
