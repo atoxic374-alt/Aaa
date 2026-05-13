@@ -138,6 +138,22 @@
 }
 .blast-section-title svg { opacity: .6; }
 
+.blast-acc-count-pill {
+  background: var(--accent-dim); color: var(--accent);
+  border: 1px solid var(--accent-rim);
+  font-size: .6rem; font-weight: 700;
+  padding: 1px 7px; border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.blast-member-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--success-dim); color: #5de88a;
+  border: 1px solid rgba(59,165,93,.2);
+  border-radius: var(--radius-sm); padding: 5px 10px;
+  font-size: .76rem; font-weight: 600; margin-top: 7px;
+}
+
 .blast-section-actions { display: flex; gap: 5px; }
 
 /* ── Mini Buttons ───────────────────────────────────────────── */
