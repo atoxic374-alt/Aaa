@@ -59,4 +59,9 @@ window.electronAPI = {
   multiDMValidate: (accountList) => api('POST', '/multi-dm/validate', { accountList }),
   multiDMState:    (jobId) => api('GET',   `/multi-dm/state/${jobId}`),
   multiDMJobs:     ()      => api('GET',   '/multi-dm/jobs'),
+
+  /* ── Blast-specific (work without main Discord connection) ── */
+  getBlastServers:  ()                     => api('GET', '/blast/servers'),
+  getBlastMembers:  (guildId, channelId)   => api('GET', `/blast/members?guildId=${guildId}${channelId && channelId !== 'all' ? `&channelId=${channelId}` : ''}`),
+  getBlastChannels: (guildId)              => api('GET', `/blast/channels/${guildId}`),
 };

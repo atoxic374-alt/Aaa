@@ -357,6 +357,95 @@ app.post('/api/discord/servers/:id/leave', async (req, res) => {
 
 app.get('/api/updates', (req, res) => res.json({ success: true, upToDate: true }));
 
+// ── Blast-specific: fetch servers using any saved token ────────────────────
+app.get('/api/blast/servers', async (req, res) => {
+  // Try main discordClient first
+  if (discordClient?.guilds?.cache?.size > 0) {
+    const servers = Array.from(discordClient.guilds.cache.values())
+      .map(s => ({ id: s.id, name: s.name, icon: s.iconURL() || null }));
+    return res.json({ success: true, servers });
+  }
+  // Fall back to saved tokens via direct API
+  try {
+    const tokens = JSON.parse(fs.readFileSync(tokensPath, 'utf8'));
+    if (!tokens.length) return res.json({ success: false, error: 'No tokens available. Add a token first.' });
+    const token = tokens[0].token;
+    const response = await axios.get('https://discord.com/api/v9/users/@me/guilds', {
+      headers: { Authorization: token, 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (!Array.isArray(response.data)) return res.json({ success: false, error: 'Invalid response from Discord' });
+    const servers = response.data.map(s => ({
+      id: s.id, name: s.name,
+      icon: s.icon ? `https://cdn.discordapp.com/icons/${s.id}/${s.icon}.png?size=64` : null
+    }));
+    return res.json({ success: true, servers });
+  } catch (e) { return res.json({ success: false, error: e.message }); }
+});
+
+// ── Blast-specific: fetch members using any saved token ───────────────────
+app.get('/api/blast/members', async (req, res) => {
+  const { guildId, channelId } = req.query;
+  if (!guildId) return res.json({ success: false, error: 'guildId required' });
+  try {
+    // Try main discordClient first
+    if (discordClient?.guilds?.cache?.has(guildId)) {
+      const guild = discordClient.guilds.cache.get(guildId);
+      try { await guild.members.fetch(); } catch {}
+      let members;
+      if (!channelId || channelId === 'all') {
+        members = Array.from(guild.members.cache.values())
+          .filter(m => !m.user.bot)
+          .map(m => ({ id: m.user.id, username: m.user.username, displayName: m.displayName }));
+      } else {
+        const ch = guild.channels.cache.get(channelId);
+        members = ch
+          ? Array.from(guild.members.cache.values())
+              .filter(m => !m.user.bot && ch.permissionsFor(m)?.has('VIEW_CHANNEL'))
+              .map(m => ({ id: m.user.id, username: m.user.username, displayName: m.displayName }))
+          : [];
+      }
+      return res.json({ success: true, members });
+    }
+
+    // Fall back to saved tokens via direct API (search endpoint)
+    const tokens = JSON.parse(fs.readFileSync(tokensPath, 'utf8'));
+    if (!tokens.length) return res.json({ success: false, error: 'No tokens available' });
+    const token = tokens[0].token;
+    // Fetch guild members via search (limit 1000)
+    const r = await axios.get(`https://discord.com/api/v9/guilds/${guildId}/members?limit=1000`, {
+      headers: { Authorization: token, 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (!Array.isArray(r.data)) return res.json({ success: false, error: 'Could not fetch members — check token permissions' });
+    const members = r.data
+      .filter(m => !m.user?.bot)
+      .map(m => ({ id: m.user.id, username: m.user.username, displayName: m.nick || m.user.global_name || m.user.username }));
+    return res.json({ success: true, members });
+  } catch (e) { return res.json({ success: false, error: e.message }); }
+});
+
+// ── Blast-specific: fetch channels using any saved token ──────────────────
+app.get('/api/blast/channels/:guildId', async (req, res) => {
+  const { guildId } = req.params;
+  try {
+    if (discordClient?.guilds?.cache?.has(guildId)) {
+      const guild = discordClient.guilds.cache.get(guildId);
+      const channels = Array.from(guild.channels.cache.values())
+        .filter(c => c.type === 'GUILD_TEXT')
+        .map(c => ({ id: c.id, name: c.name }));
+      return res.json({ success: true, channels });
+    }
+    const tokens = JSON.parse(fs.readFileSync(tokensPath, 'utf8'));
+    if (!tokens.length) return res.json({ success: false, error: 'No tokens' });
+    const token = tokens[0].token;
+    const r = await axios.get(`https://discord.com/api/v9/guilds/${guildId}/channels`, {
+      headers: { Authorization: token, 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (!Array.isArray(r.data)) return res.json({ success: false, error: 'Could not fetch channels' });
+    const channels = r.data.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name }));
+    return res.json({ success: true, channels });
+  } catch (e) { return res.json({ success: false, error: e.message }); }
+});
+
 // ── Multi-DM ─────────────────────────────────────────────────────────────────
 const _multiDMJobs    = new Map();
 const _multiDMStreams = new Map();

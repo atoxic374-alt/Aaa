@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   BlastManager — DM Blast & Server Blast
+   BlastManager — DM Blast & Server Blast  (fully fixed)
    mode: 'dm' | 'server'
    ══════════════════════════════════════════════════════════════ */
 import { showNotification, showConfirm } from '../utils/ui.js';
@@ -13,7 +13,7 @@ function workerColor(name = '') {
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   return `hsl(${Math.abs(h) % 360},62%,62%)`;
 }
-const initial = (n = '?') => n[0].toUpperCase();
+const initial = (n = '?') => (n[0] || '?').toUpperCase();
 
 function fmtETA(sec) {
   if (!sec || sec <= 0) return '—';
@@ -42,15 +42,21 @@ function badgeClass(w) {
   return 'wbadge-idle';
 }
 
+const SPEED_META = {
+  safe:   { emoji: '🛡️', name: 'Safe',   info: '~1.35s / msg', risk: 'Minimal risk',  riskClass: 'risk-low' },
+  normal: { emoji: '⚡',  name: 'Normal', info: '~820ms / msg', risk: 'Balanced',      riskClass: 'risk-med' },
+  fast:   { emoji: '🚀',  name: 'Fast',   info: '~480ms / msg', risk: 'Higher risk',   riskClass: 'risk-high' },
+};
+
 /* ══════════════════════════════════════════════════════════════ */
 export class BlastManager {
   constructor(contentArea, mode) {
-    this.contentArea   = contentArea;
-    this.mode          = mode;           // 'dm' | 'server'
-    this.tokens        = [];
-    this.dmContacts    = [];
-    this.servers       = [];
-    this.serverMembers = [];
+    this.contentArea    = contentArea;
+    this.mode           = mode;           // 'dm' | 'server'
+    this.tokens         = [];
+    this.dmContacts     = [];
+    this.servers        = [];
+    this.serverMembers  = [];
     this.selectedTarget = mode === 'dm' ? 'all' : 'server';
     this.selectedSpeed  = 'normal';
     this.uploadedImages = [];
@@ -70,10 +76,10 @@ export class BlastManager {
     try {
       const calls = [window.electronAPI.getTokens()];
       if (this.mode === 'dm')     calls.push(window.electronAPI.getDMs());
-      if (this.mode === 'server') calls.push(window.electronAPI.getServers());
+      if (this.mode === 'server') calls.push(window.electronAPI.getBlastServers());
 
       const [tokRes, dataRes] = await Promise.all(calls);
-      this.tokens = tokRes.success ? (tokRes.tokens || []) : [];
+      this.tokens = tokRes.success ? this._deduplicateTokens(tokRes.tokens || []) : [];
       if (this.mode === 'dm')     this.dmContacts = dataRes?.success ? (dataRes.dms || []) : [];
       if (this.mode === 'server') this.servers    = dataRes?.success ? (dataRes.servers || []) : [];
 
@@ -82,6 +88,17 @@ export class BlastManager {
     } catch (e) {
       this.contentArea.innerHTML = `<div class="state-empty"><p class="error">Load failed: ${e.message}</p></div>`;
     }
+  }
+
+  /* Deduplicate tokens by token value (same account, different names) */
+  _deduplicateTokens(tokens) {
+    const seen = new Set();
+    return tokens.filter(t => {
+      const key = t.token?.trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   _loadingHTML() {
@@ -170,24 +187,13 @@ export class BlastManager {
               </span>
             </div>
             <div class="blast-speed-grid" id="blastSpeedGrid">
-              <button class="blast-speed-card" data-speed="safe">
-                <span class="blast-speed-emoji">🛡️</span>
-                <span class="blast-speed-name">Safe</span>
-                <span class="blast-speed-info">~1.35s / msg</span>
-                <span class="blast-speed-risk risk-low">Minimal risk</span>
-              </button>
-              <button class="blast-speed-card active" data-speed="normal">
-                <span class="blast-speed-emoji">⚡</span>
-                <span class="blast-speed-name">Normal</span>
-                <span class="blast-speed-info">~820ms / msg</span>
-                <span class="blast-speed-risk risk-med">Balanced</span>
-              </button>
-              <button class="blast-speed-card" data-speed="fast">
-                <span class="blast-speed-emoji">🚀</span>
-                <span class="blast-speed-name">Fast</span>
-                <span class="blast-speed-info">~480ms / msg</span>
-                <span class="blast-speed-risk risk-high">Higher risk</span>
-              </button>
+              ${Object.entries(SPEED_META).map(([key, m]) => `
+              <button class="blast-speed-card${key === this.selectedSpeed ? ' active' : ''}" data-speed="${key}">
+                <span class="blast-speed-emoji" data-emoji="${m.emoji}">${m.emoji}</span>
+                <span class="blast-speed-name">${m.name}</span>
+                <span class="blast-speed-info">${m.info}</span>
+                <span class="blast-speed-risk ${m.riskClass}">${m.risk}</span>
+              </button>`).join('')}
             </div>
           </div>
 
@@ -270,7 +276,7 @@ export class BlastManager {
         <div class="blast-acc-avatar">${initial(t.name)}</div>
         <div class="blast-acc-info">
           <div class="blast-acc-name">${t.name || 'Account ' + (i + 1)}</div>
-          <div class="blast-acc-tail">···${t.token.slice(-6)}</div>
+          <div class="blast-acc-tail">···${(t.token || '').slice(-6)}</div>
         </div>
         <span class="blast-acc-badge pending" id="baccBadge_${i}">—</span>
         <button class="blast-acc-delete" data-name="${t.name}" title="Remove account">✕</button>
@@ -298,11 +304,21 @@ export class BlastManager {
 
   /* ─── Server target HTML ──────────────────────────────────── */
   _renderServerTarget() {
+    const opts = this.servers.length
+      ? this.servers.map(s => {
+          const icon = s.icon ? `<img src="${s.icon}" width="16" height="16" style="border-radius:50%;vertical-align:middle;margin-right:5px;">` : '';
+          return `<option value="${s.id}">${s.name}</option>`;
+        }).join('')
+      : '';
     return `
     <select class="blast-select" id="blastServerSelect">
       <option value="">— Choose a server —</option>
-      ${this.servers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+      ${opts}
     </select>
+    ${!this.servers.length ? `<div class="blast-server-warning">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      No servers found. Make sure at least one token is saved.
+    </div>` : ''}
     <select class="blast-select" id="blastChannelSelect" disabled>
       <option value="all">All Server Members</option>
     </select>
@@ -323,10 +339,14 @@ export class BlastManager {
 
     /* Add token toggle */
     $('addTokenBtn').addEventListener('click', () => {
-      const form = $('addTokenForm');
+      const form    = $('addTokenForm');
       const showing = form.style.display !== 'none';
       form.style.display = showing ? 'none' : 'flex';
-      if (!showing) { $('newTokenName').focus(); $('addTokenStatus').textContent = ''; $('addTokenStatus').className = 'blast-add-token-status'; }
+      if (!showing) {
+        $('newTokenName').focus();
+        $('addTokenStatus').textContent = '';
+        $('addTokenStatus').className   = 'blast-add-token-status';
+      }
     });
     $('cancelAddTokenBtn').addEventListener('click', () => { $('addTokenForm').style.display = 'none'; });
 
@@ -337,26 +357,8 @@ export class BlastManager {
     /* Validate all */
     $('validateAllBtn').addEventListener('click', () => this._validateAll());
 
-    /* Delete account buttons */
-    document.querySelectorAll('.blast-acc-delete').forEach(btn => {
-      btn.addEventListener('click', async e => {
-        e.preventDefault(); e.stopPropagation();
-        const name = btn.dataset.name;
-        const ok = await showConfirm(`Remove account "${name}"?`, { danger: true, confirmText: 'Remove', cancelText: 'Keep' });
-        if (!ok) return;
-        await window.electronAPI.deleteToken(name);
-        this.tokens = this.tokens.filter(t => t.name !== name);
-        $('blastAccList').innerHTML = this._renderAccounts();
-        this._rebindAccEvents();
-        this._updateStats();
-        showNotification(`"${name}" removed`, 'success');
-      });
-    });
-
-    /* Checkbox change → update stats */
-    document.querySelectorAll('.blast-acc-cb').forEach(cb => {
-      cb.addEventListener('change', () => this._updateStats());
-    });
+    /* Bind account-row events */
+    this._rebindAccEvents();
 
     /* Speed cards */
     document.querySelectorAll('.blast-speed-card').forEach(btn => {
@@ -364,10 +366,11 @@ export class BlastManager {
         document.querySelectorAll('.blast-speed-card').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.selectedSpeed = btn.dataset.speed;
-        /* re-trigger emoji bounce */
+        /* trigger emoji animation */
         const emoji = btn.querySelector('.blast-speed-emoji');
-        emoji.style.animation = 'none';
-        requestAnimationFrame(() => { emoji.style.animation = ''; });
+        emoji.classList.remove('speed-anim');
+        void emoji.offsetWidth;
+        emoji.classList.add('speed-anim');
         this._updateStats();
       });
     });
@@ -383,29 +386,44 @@ export class BlastManager {
       });
     });
 
-    /* Server selects */
+    /* Server selects — use blast-specific endpoints */
     const serverSel  = $('blastServerSelect');
     const channelSel = $('blastChannelSelect');
     if (serverSel) {
       serverSel.addEventListener('change', async () => {
         const sid = serverSel.value;
-        if (!sid) { this.serverMembers = []; $('blastMemberBadgeWrap').style.display = 'none'; this._updateStats(); return; }
+        if (!sid) {
+          this.serverMembers = [];
+          $('blastMemberBadgeWrap').style.display = 'none';
+          this._updateStats();
+          return;
+        }
         channelSel.disabled = true;
-        channelSel.innerHTML = '<option>Loading…</option>';
+        channelSel.innerHTML = '<option>Loading channels…</option>';
         $('blastMemberBadgeWrap').style.display = 'block';
         $('blastMemberCount').textContent = '…';
+
         const [chRes, memRes] = await Promise.all([
-          window.electronAPI.getServerChannels(sid),
-          window.electronAPI.getServerMembers(sid, 'all')
+          window.electronAPI.getBlastChannels(sid),
+          window.electronAPI.getBlastMembers(sid, 'all')
         ]);
+
         channelSel.innerHTML = '<option value="all">All Server Members</option>';
-        if (chRes.success) chRes.channels.forEach(ch => {
-          const o = document.createElement('option');
-          o.value = ch.id; o.textContent = `# ${ch.name}`;
-          channelSel.appendChild(o);
-        });
+        if (chRes.success) {
+          chRes.channels.forEach(ch => {
+            const o = document.createElement('option');
+            o.value = ch.id; o.textContent = `# ${ch.name}`;
+            channelSel.appendChild(o);
+          });
+        }
         channelSel.disabled = false;
-        this.serverMembers = memRes.success ? memRes.members : [];
+
+        if (!memRes.success) {
+          showNotification('Could not fetch members: ' + memRes.error, 'error');
+          this.serverMembers = [];
+        } else {
+          this.serverMembers = memRes.members || [];
+        }
         $('blastMemberCount').textContent = this.serverMembers.length;
         this._updateStats();
       });
@@ -413,9 +431,10 @@ export class BlastManager {
       channelSel?.addEventListener('change', async () => {
         if (!serverSel.value) return;
         $('blastMemberCount').textContent = '…';
-        const r = await window.electronAPI.getServerMembers(serverSel.value, channelSel.value);
-        this.serverMembers = r.success ? r.members : [];
+        const r = await window.electronAPI.getBlastMembers(serverSel.value, channelSel.value);
+        this.serverMembers = r.success ? (r.members || []) : [];
         $('blastMemberCount').textContent = this.serverMembers.length;
+        if (!r.success) showNotification('Could not fetch channel members: ' + r.error, 'error');
         this._updateStats();
       });
     }
@@ -425,7 +444,7 @@ export class BlastManager {
       const len = $('blastMessage').value.length;
       const el  = $('blastCharCount');
       el.textContent = `${len} / 2000`;
-      el.className = `blast-char-count${len > 1800 ? ' danger' : len > 1500 ? ' warn' : ''}`;
+      el.className   = `blast-char-count${len > 1800 ? ' danger' : len > 1500 ? ' warn' : ''}`;
       this._updateStats();
     });
 
@@ -442,7 +461,7 @@ export class BlastManager {
       btn.addEventListener('click', async e => {
         e.preventDefault(); e.stopPropagation();
         const name = btn.dataset.name;
-        const ok = await showConfirm(`Remove account "${name}"?`, { danger: true, confirmText: 'Remove', cancelText: 'Keep' });
+        const ok   = await showConfirm(`Remove account "${name}"?`, { danger: true, confirmText: 'Remove', cancelText: 'Keep' });
         if (!ok) return;
         await window.electronAPI.deleteToken(name);
         this.tokens = this.tokens.filter(t => t.name !== name);
@@ -495,8 +514,8 @@ export class BlastManager {
 
   /* ─── Validate & Save new token ───────────────────────────── */
   async _saveNewToken() {
-    const nameEl  = document.getElementById('newTokenName');
-    const tokenEl = document.getElementById('newTokenValue');
+    const nameEl   = document.getElementById('newTokenName');
+    const tokenEl  = document.getElementById('newTokenValue');
     const statusEl = document.getElementById('addTokenStatus');
 
     const name  = nameEl.value.trim() || `Account ${this.tokens.length + 1}`;
@@ -504,7 +523,22 @@ export class BlastManager {
 
     if (!token) { statusEl.textContent = 'Paste a token first'; statusEl.className = 'blast-add-token-status fail'; return; }
 
-    statusEl.textContent = '⏳ Validating…'; statusEl.className = 'blast-add-token-status';
+    /* ── Check duplicates ── */
+    const dupByToken = this.tokens.find(t => t.token?.trim() === token);
+    if (dupByToken) {
+      statusEl.textContent = `✗ This token is already saved as "${dupByToken.name}"`;
+      statusEl.className   = 'blast-add-token-status fail';
+      return;
+    }
+    const dupByName = this.tokens.find(t => t.name?.toLowerCase() === name.toLowerCase());
+    if (dupByName) {
+      statusEl.textContent = `✗ An account named "${name}" already exists`;
+      statusEl.className   = 'blast-add-token-status fail';
+      return;
+    }
+
+    statusEl.textContent = '⏳ Validating…';
+    statusEl.className   = 'blast-add-token-status';
     const btn = document.getElementById('saveNewTokenBtn');
     btn.disabled = true;
 
@@ -512,14 +546,14 @@ export class BlastManager {
       const res = await window.electronAPI.multiDMValidate([{ name, token }]);
       if (!res.success || !res.results?.[0]?.valid) {
         statusEl.textContent = '✗ Token is dead or invalid — not saved';
-        statusEl.className = 'blast-add-token-status fail';
+        statusEl.className   = 'blast-add-token-status fail';
         btn.disabled = false;
         return;
       }
       const saveRes = await window.electronAPI.saveToken(name, token);
       if (!saveRes.success) {
         statusEl.textContent = `✗ Save failed: ${saveRes.error}`;
-        statusEl.className = 'blast-add-token-status fail';
+        statusEl.className   = 'blast-add-token-status fail';
         btn.disabled = false;
         return;
       }
@@ -532,14 +566,14 @@ export class BlastManager {
       showNotification(`"${name}" added & validated ✓`, 'success');
     } catch (e) {
       statusEl.textContent = `✗ Error: ${e.message}`;
-      statusEl.className = 'blast-add-token-status fail';
+      statusEl.className   = 'blast-add-token-status fail';
     }
     btn.disabled = false;
   }
 
   /* ─── Validate all tokens ─────────────────────────────────── */
   async _validateAll() {
-    const btn = document.getElementById('validateAllBtn');
+    const btn     = document.getElementById('validateAllBtn');
     const summary = document.getElementById('validateSummary');
     if (!this.tokens.length) { showNotification('No accounts to validate', 'warn'); return; }
 
@@ -547,7 +581,6 @@ export class BlastManager {
     btn.innerHTML = `<span style="animation:spin .6s linear infinite;display:inline-block;">↻</span> Checking…`;
     summary.style.display = 'none';
 
-    /* Mark all as checking */
     this.tokens.forEach((_, i) => {
       const badge = document.getElementById(`baccBadge_${i}`);
       if (badge) { badge.textContent = '…'; badge.className = 'blast-acc-badge checking'; }
@@ -588,7 +621,7 @@ export class BlastManager {
   /* ─── Stats preview update ────────────────────────────────── */
   _updateStats() {
     const accounts = document.querySelectorAll('.blast-acc-cb:checked').length;
-    let targets = 0;
+    let targets    = 0;
 
     if (this.mode === 'dm') {
       targets = this.selectedTarget === 'all'
@@ -605,7 +638,7 @@ export class BlastManager {
       const delayMs = DELAYS[this.selectedSpeed] || 820;
       const eta     = Math.ceil(perAcc * delayMs / 1000);
       animNum(document.getElementById('bsAccounts'), accounts);
-      animNum(document.getElementById('bsTargets'), targets);
+      animNum(document.getElementById('bsTargets'),  targets);
       document.getElementById('bsPerAcc').textContent = perAcc;
       document.getElementById('bsETA').textContent    = fmtETA(eta);
     } else {
@@ -632,8 +665,9 @@ export class BlastManager {
       .map(cb => ({ name: cb.dataset.name, token: cb.dataset.token }));
 
     if (!accounts.length) {
-      document.getElementById('sectionAccounts').style.boxShadow = '0 0 0 2px var(--danger)';
-      setTimeout(() => { document.getElementById('sectionAccounts').style.boxShadow = ''; }, 1400);
+      const sec = document.getElementById('sectionAccounts');
+      sec.style.boxShadow = '0 0 0 2px var(--danger)';
+      setTimeout(() => { sec.style.boxShadow = ''; }, 1400);
       showNotification('Select at least one account', 'warn');
       return;
     }
@@ -642,11 +676,11 @@ export class BlastManager {
     if (this.mode === 'dm') {
       userIds = this.selectedTarget === 'all'
         ? this.dmContacts.map(d => d.userId).filter(Boolean)
-        : []; /* selected would be passed from DM list page — here default to all */
+        : [];
     } else {
       if (!this.serverMembers.length) {
-        document.getElementById('blastServerSelect').style.borderColor = 'var(--danger)';
-        setTimeout(() => { document.getElementById('blastServerSelect').style.borderColor = ''; }, 1400);
+        const sel = document.getElementById('blastServerSelect');
+        if (sel) { sel.style.borderColor = 'var(--danger)'; setTimeout(() => { sel.style.borderColor = ''; }, 1400); }
         showNotification('Select a server first', 'warn');
         return;
       }
@@ -655,19 +689,21 @@ export class BlastManager {
 
     if (!userIds.length) { showNotification('No targets found', 'warn'); return; }
 
+    /* Deduplicate user IDs */
+    const uniqueIds = [...new Set(userIds)];
+
     const confirmed = await showConfirm(
-      `Send to <b>${userIds.length}</b> users via <b>${accounts.length}</b> account${accounts.length > 1 ? 's' : ''}?`,
+      `Send to <b>${uniqueIds.length}</b> users via <b>${accounts.length}</b> account${accounts.length > 1 ? 's' : ''}?`,
       { title: 'Confirm Blast', confirmText: 'Start Blast', danger: false }
     );
     if (!confirmed) return;
 
-    /* Start */
     const startBtn = document.getElementById('blastStartBtn');
     startBtn.disabled = true;
     document.getElementById('blastStartLabel').textContent = 'Starting…';
 
     const startRes = await window.electronAPI.multiDMStart(
-      accounts, userIds, msg, this.uploadedImages, this.selectedSpeed
+      accounts, uniqueIds, msg, this.uploadedImages, this.selectedSpeed
     );
 
     if (!startRes.success) {
@@ -677,8 +713,8 @@ export class BlastManager {
       return;
     }
 
-    this.isSending  = true;
-    this._jobId     = startRes.jobId;
+    this.isSending = true;
+    this._jobId    = startRes.jobId;
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ jobId: startRes.jobId, accountList: accounts, total: startRes.total, mode: this.mode }));
 
     this._showProgressModal(startRes.jobId, accounts, startRes.total);
@@ -812,12 +848,12 @@ export class BlastManager {
     const feedCnt  = modal.querySelector('#bpFeedCount');
 
     /* Elapsed timer */
-    this._startTs = Date.now() - (initialState?.elapsed || 0);
+    this._startTs = Date.now() - (initialState?.elapsed || 0) * 1000;
     clearInterval(this._elapsedTimer);
     this._elapsedTimer = setInterval(() => {
-      const s = Math.floor((Date.now() - this._startTs) / 1000);
+      const s  = Math.floor((Date.now() - this._startTs) / 1000);
       const el = modal.querySelector('#bpElapsed');
-      if (el) el.textContent = s < 60 ? `${s}s` : `${Math.floor(s/60)}m ${s%60}s`;
+      if (el) el.textContent = s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
     }, 1000);
 
     /* ── Apply state ── */
@@ -826,7 +862,7 @@ export class BlastManager {
       const pct  = st.total > 0 ? Math.round((done / st.total) * 100) : 0;
       const skip = (st.workers || []).reduce((s, w) => s + (w.skipped || 0), 0);
 
-      modal.querySelector('#bpBar').style.width = `${pct}%`;
+      modal.querySelector('#bpBar').style.width  = `${pct}%`;
       modal.querySelector('#bpPct').textContent  = `${pct}%`;
       modal.querySelector('#bpDone').textContent = `${done} / ${st.total}`;
 
@@ -844,20 +880,20 @@ export class BlastManager {
 
       isPaused = st.paused;
       if (isPaused) {
-        dot.className = 'mdm-pulse-dot paused';
+        dot.className  = 'mdm-pulse-dot paused';
         pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Resume`;
         pauseBtn.className = 'blast-ctrl-btn ctrl-resume';
       } else if (!st.finished && !st.stopped) {
-        dot.className = 'mdm-pulse-dot active';
+        dot.className  = 'mdm-pulse-dot active';
         pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause`;
         pauseBtn.className = 'blast-ctrl-btn ctrl-pause';
       }
 
       /* Workers */
       (st.workers || []).forEach((w, i) => {
-        const wDone = (w.sent || 0) + (w.failed || 0) + (w.skipped || 0);
+        const wDone  = (w.sent || 0) + (w.failed || 0) + (w.skipped || 0);
         const wTotal = Math.max(1, Math.ceil((st.total || 1) / Math.max(1, st.workers?.length || 1)));
-        const wPct  = Math.min(100, Math.round((wDone / wTotal) * 100));
+        const wPct   = Math.min(100, Math.round((wDone / wTotal) * 100));
 
         const bar   = modal.querySelector(`#bpWBar_${i}`);
         const badge = modal.querySelector(`#bpWBadge_${i}`);
@@ -886,8 +922,10 @@ export class BlastManager {
           this.isSending = false;
           const badge = document.getElementById('blastJobBadge');
           if (badge) badge.style.display = 'none';
-          document.getElementById('blastStartBtn').disabled = false;
-          document.getElementById('blastStartLabel').textContent = 'Start Blast';
+          const sb = document.getElementById('blastStartBtn');
+          if (sb) { sb.disabled = false; }
+          const sl = document.getElementById('blastStartLabel');
+          if (sl) sl.textContent = 'Start Blast';
         };
         if (this._sse)    { this._sse.close();    this._sse    = null; }
         if (this._actSSE) { this._actSSE.close(); this._actSSE = null; }
@@ -956,7 +994,7 @@ export class BlastManager {
       <div class="feed-acc" style="background:${color}20;border:1px solid ${color}40;">
         <span class="feed-init" style="color:${color};font-size:.7rem;font-weight:700;">${init}</span>
       </div>
-      <span class="feed-icon ${isOk ? '' : isFail ? '' : ''}">${isOk ? '→' : isFail ? '✗' : '⊘'}</span>
+      <span class="feed-icon">${isOk ? '→' : isFail ? '✗' : '⊘'}</span>
       <div class="feed-user">
         <span class="feed-uid">${ev.userId ? `···${ev.userId.slice(-8)}` : '——'}</span>
         ${ev.reason ? `<span class="feed-reason">${ev.reason}</span>` : ''}
