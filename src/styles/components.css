@@ -1,216 +1,54 @@
-/* ═══════════════════════════════════════════════════════════
-   Components — DM Sender, Multi-DM Compose, Workers, etc.
-   ═══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   COMPONENTS — Compose, Speed, Workers, Feed, Selects…
+   ══════════════════════════════════════════════════════════════ */
 
-/* ── Modal Label ────────────────────────────────────────── */
+/* ── Section Label ──────────────────────────────────────────── */
 .modal-label {
   display: block;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-3);
-  margin: 14px 0 6px;
+  margin: 14px 0 7px;
 }
 
-/* ── Target Buttons ─────────────────────────────────────── */
-.send-target-group {
-  display: flex;
-  gap: 6px;
-}
-
-.send-target-btn {
-  flex: 1;
-  padding: 8px 10px;
-  background: var(--bg-1);
-  border: 1.5px solid var(--border-2);
-  border-radius: var(--radius-md);
-  color: var(--text-2);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--t) var(--ease);
-  text-align: center;
-}
-.send-target-btn:hover:not([disabled]):not(.active) {
-  border-color: var(--accent);
-  color: var(--text);
-  background: var(--accent-dim);
-  transform: none;
-  box-shadow: none;
-}
-.send-target-btn.active {
-  border-color: var(--accent);
-  background: var(--accent-dim);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-.send-target-btn[disabled] {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-.target-count {
-  display: block;
-  font-size: 0.72rem;
-  font-weight: 400;
-  color: var(--text-3);
-  margin-top: 2px;
-}
-
-/* ── Server/Channel Selects ─────────────────────────────── */
+/* ── Selects ────────────────────────────────────────────────── */
 .modal-select {
   width: 100%;
-  padding: 9px 12px;
+  padding: 9px 32px 9px 12px;
   background: var(--bg-1);
   border: 1px solid var(--border-2);
   border-radius: var(--radius-md);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.87rem;
+  font-size: .86rem;
   cursor: pointer;
   outline: none;
   box-sizing: border-box;
-  transition: border-color var(--t) var(--ease);
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ea3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239297b0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px;
-}
-.modal-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.modal-select option { background: var(--bg-2); }
-
-/* ── Accounts Box ───────────────────────────────────────── */
-.mdm-accounts-box {
-  background: var(--bg-1);
-  border: 1px solid var(--border-2);
-  border-radius: var(--radius-md);
-  padding: 8px;
-  max-height: 170px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  background-position: right 10px center;
   transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
 }
-
-.mdm-no-accounts {
-  color: var(--text-3);
-  font-size: 0.82rem;
-  text-align: center;
-  padding: 12px;
-}
-
-.mdm-account-row {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 7px 9px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--t) var(--ease);
-  user-select: none;
-}
-.mdm-account-row:hover { background: var(--bg-3); }
-
-.mdm-account-row input[type="checkbox"] {
-  width: 14px; height: 14px;
-  margin: 0;
-  flex-shrink: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.mdm-acc-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--success);
-  box-shadow: 0 0 5px rgba(59,165,93,0.5);
-  flex-shrink: 0;
-  transition: background 0.2s, box-shadow 0.2s;
-}
-
-.mdm-acc-name {
-  flex: 1;
-  font-size: 0.86rem;
-  font-weight: 500;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mdm-acc-tail {
-  font-size: 0.72rem;
-  color: var(--text-3);
-  font-family: 'Fira Code', 'Cascadia Code', monospace;
-  background: var(--bg-2);
-  padding: 1px 6px;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.mdm-accounts-hint {
-  font-size: 0.73rem;
-  color: var(--text-3);
-  margin: 5px 0 0;
-  line-height: 1.45;
-}
-
-/* ── Validate Button ────────────────────────────────────── */
-.mdm-validate-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--accent-dim);
-  color: var(--accent);
-  border: 1px solid rgba(88,101,242,0.25);
-  border-radius: var(--radius-md);
-  padding: 6px 14px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  margin-top: 8px;
-  transition: all var(--t) var(--ease);
-  letter-spacing: 0.02em;
-}
-.mdm-validate-btn:hover:not([disabled]) {
-  background: rgba(88,101,242,0.2);
+.modal-select:focus {
   border-color: var(--accent);
-  transform: none;
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
-.mdm-validate-btn[disabled] { opacity: 0.38; cursor: not-allowed; }
+.modal-select option { background: var(--bg-2); }
 
-.mdm-val-hint {
-  margin-left: 8px;
-  font-size: 0.73rem;
-  font-weight: 700;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.mdm-val-badge {
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-.mdm-val-badge.valid { background: var(--success-dim); color: #5de88a; }
-.mdm-val-badge.dead  { background: var(--danger-dim);  color: #f07070; }
-
-/* ── Textarea ───────────────────────────────────────────── */
+/* ── Textarea ───────────────────────────────────────────────── */
 .modal-textarea {
   width: 100%;
-  min-height: 90px;
+  min-height: 88px;
   padding: 10px 12px;
   background: var(--bg-1);
   border: 1px solid var(--border-2);
   border-radius: var(--radius-md);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.87rem;
+  font-size: .87rem;
   resize: vertical;
   box-sizing: border-box;
   outline: none;
@@ -222,192 +60,218 @@
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-/* ── Image Drop ─────────────────────────────────────────── */
-.mdm-image-drop {
-  border: 2px dashed var(--border-2);
+/* ── Target Selector ────────────────────────────────────────── */
+.send-target-group { display: flex; gap: 6px; }
+
+.send-target-btn {
+  flex: 1;
+  padding: 9px 8px 8px;
+  background: var(--bg-1);
+  border: 1.5px solid var(--border-2);
   border-radius: var(--radius-md);
-  padding: 16px;
-  text-align: center;
+  color: var(--text-2);
+  font-size: .79rem;
+  font-weight: 600;
   cursor: pointer;
-  color: var(--text-3);
-  font-size: 0.82rem;
-  transition: all var(--t) var(--ease);
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
+  line-height: 1.15;
+  transition: all var(--t) var(--ease);
 }
-.mdm-image-drop:hover,
-.mdm-image-drop.drag-over {
+.send-target-btn:hover:not([disabled]):not(.active) {
+  border-color: var(--accent-rim);
+  color: var(--text);
+  background: var(--accent-dim);
+  transform: none; box-shadow: none;
+}
+.send-target-btn.active {
   border-color: var(--accent);
   background: var(--accent-dim);
-  color: var(--text-2);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(88,101,242,0.3), 0 0 10px rgba(88,101,242,0.1);
 }
-.mdm-image-drop svg { opacity: 0.45; transition: opacity var(--t) var(--ease); }
-.mdm-image-drop:hover svg { opacity: 0.75; }
+.send-target-btn[disabled] { opacity: 0.28; cursor: not-allowed; }
+.target-count { font-size: .7rem; font-weight: 400; color: var(--text-3); }
 
-.mdm-image-previews {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.mdm-img-thumb {
-  position: relative;
-  width: 58px; height: 58px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+/* ── Accounts Box ───────────────────────────────────────────── */
+.mdm-accounts-box {
+  background: var(--bg-1);
   border: 1px solid var(--border-2);
-  animation: item-in 0.2s var(--spring) both;
+  border-radius: var(--radius-md);
+  padding: 6px;
+  max-height: 165px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
 }
-.mdm-img-thumb img {
-  width: 100%; height: 100%;
-  object-fit: cover;
+
+.mdm-no-accounts {
+  color: var(--text-3); font-size: .82rem; text-align: center; padding: 14px;
 }
-.mdm-img-remove {
-  position: absolute;
-  top: 2px; right: 2px;
-  width: 17px; height: 17px;
-  background: rgba(0,0,0,0.8);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 9px;
-  padding: 0;
+
+.mdm-account-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity var(--t) var(--ease), background var(--t) var(--ease);
+  gap: 9px;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--t) var(--ease);
+}
+.mdm-account-row:hover { background: var(--bg-3); }
+.mdm-account-row input[type="checkbox"] { width: 14px; height: 14px; margin: 0; cursor: pointer; flex-shrink: 0; }
+
+.mdm-acc-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 5px rgba(59,165,93,.5);
+  flex-shrink: 0;
+  transition: background .2s, box-shadow .2s;
+}
+
+.mdm-acc-name {
+  flex: 1; font-size: .85rem; font-weight: 500; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.mdm-acc-tail {
+  font-size: .71rem; color: var(--text-3);
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  background: var(--bg-2); padding: 1px 6px; border-radius: 4px; flex-shrink: 0;
+}
+
+.mdm-accounts-hint { font-size: .72rem; color: var(--text-3); margin: 5px 0 0; line-height: 1.5; }
+
+/* ── Validate Button ────────────────────────────────────────── */
+.mdm-validate-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent-dim); color: var(--accent);
+  border: 1px solid var(--accent-rim); border-radius: var(--radius-md);
+  padding: 6px 14px; font-size: .78rem; font-weight: 700;
+  cursor: pointer; margin-top: 8px;
+  transition: all var(--t) var(--ease);
+}
+.mdm-validate-btn:hover:not([disabled]) {
+  background: rgba(88,101,242,.22); border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow); transform: none;
+}
+.mdm-validate-btn[disabled] { opacity: .35; cursor: not-allowed; }
+.mdm-val-hint { margin-left: 8px; font-size: .72rem; }
+
+.mdm-val-badge {
+  font-size: .67rem; font-weight: 700; padding: 2px 7px;
+  border-radius: 8px; flex-shrink: 0;
+}
+.mdm-val-badge.valid { background: var(--success-dim); color: #5de88a; }
+.mdm-val-badge.dead  { background: var(--danger-dim);  color: #f07070; }
+
+/* ── Image Drop Zone ────────────────────────────────────────── */
+.mdm-image-drop {
+  border: 2px dashed var(--border-2); border-radius: var(--radius-md);
+  padding: 16px; text-align: center; cursor: pointer;
+  color: var(--text-3); font-size: .82rem;
+  transition: all var(--t) var(--ease);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.mdm-image-drop:hover, .mdm-image-drop.drag-over {
+  border-color: var(--accent); background: var(--accent-dim); color: var(--text-2);
+}
+.mdm-image-drop svg { opacity: .4; transition: opacity var(--t); }
+.mdm-image-drop:hover svg { opacity: .7; }
+
+.mdm-image-previews { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 6px; }
+
+.mdm-img-thumb {
+  position: relative; width: 56px; height: 56px;
+  border-radius: var(--radius-sm); overflow: hidden;
+  border: 1px solid var(--border-2);
+  animation: item-in .2s var(--spring) both;
+}
+.mdm-img-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.mdm-img-remove {
+  position: absolute; top: 2px; right: 2px;
+  width: 16px; height: 16px; background: rgba(0,0,0,.8); color: white;
+  border: none; border-radius: 50%; cursor: pointer; font-size: 8px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity var(--t), background var(--t);
 }
 .mdm-img-thumb:hover .mdm-img-remove { opacity: 1; }
 .mdm-img-remove:hover { background: var(--danger) !important; transform: none; box-shadow: none; }
 
-/* ── Stats Preview ──────────────────────────────────────── */
+/* ── Stats Preview ──────────────────────────────────────────── */
 .mdm-stats-preview {
-  display: flex;
-  gap: 8px;
-  margin-top: 14px;
+  display: flex; gap: 7px; margin-top: 14px;
   background: var(--accent-dim);
-  border: 1px solid rgba(88,101,242,0.18);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  flex-wrap: wrap;
-  animation: item-in 0.2s var(--spring) both;
+  border: 1px solid var(--accent-rim);
+  border-radius: var(--radius-md); padding: 10px 14px; flex-wrap: wrap;
+  animation: item-in .22s var(--spring) both;
 }
-
 .mdm-stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  min-width: 55px;
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1; min-width: 52px;
 }
-.mdm-stat-item span {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--accent);
-  line-height: 1.1;
-}
-.mdm-stat-item small {
-  font-size: 0.68rem;
-  color: var(--text-3);
-  margin-top: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  text-align: center;
+.mdm-stat-item span { font-size: 1.18rem; font-weight: 700; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.mdm-stat-item small { font-size: .67rem; color: var(--text-3); margin-top: 2px; text-transform: uppercase; letter-spacing: .05em; text-align: center; }
+
+/* ── Member Count Badge ─────────────────────────────────────── */
+.member-count-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--accent-dim); color: var(--accent);
+  border-radius: 12px; padding: 3px 12px;
+  font-size: .77rem; font-weight: 600; margin-top: 6px;
+  border: 1px solid var(--accent-rim);
 }
 
-/* ── Compose Modal ──────────────────────────────────────── */
-.mdm-compose { width: min(95%, 540px); }
+/* ── Compose Modal Header ───────────────────────────────────── */
+.mdm-compose { width: min(96vw, 540px); }
 
 .mdm-compose-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text);
+  display: flex; align-items: center; gap: 9px;
+  margin-bottom: 14px; font-size: .92rem; font-weight: 700; color: var(--text);
 }
 
 .mdm-close-x {
-  margin-left: auto;
-  background: transparent;
-  border: none;
-  color: var(--text-3);
-  font-size: 0.9rem;
-  width: 26px; height: 26px;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--t) var(--ease), color var(--t) var(--ease);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-left: auto; background: transparent; border: none;
+  color: var(--text-3); width: 26px; height: 26px; padding: 0;
+  border-radius: var(--radius-sm); cursor: pointer; font-size: .9rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--t), color var(--t);
 }
 .mdm-close-x:hover:not(:disabled) {
-  background: var(--danger-dim);
-  color: var(--danger);
-  transform: none;
-  box-shadow: none;
+  background: var(--danger-dim); color: var(--danger);
+  transform: none; box-shadow: none;
 }
 
-.mdm-footer-btns {
-  display: flex;
-  gap: 10px;
-  margin-top: 18px;
-}
+/* ── Footer Buttons ─────────────────────────────────────────── */
+.mdm-footer-btns { display: flex; gap: 9px; margin-top: 18px; }
 
 .mdm-start-btn {
   flex: 1;
-  background: var(--success);
-  font-weight: 700;
-  font-size: 0.9rem;
-  padding: 11px;
+  background: linear-gradient(135deg, var(--success), #2da352);
+  font-weight: 700; font-size: .9rem; padding: 11px;
+  border-color: transparent;
 }
 .mdm-start-btn:hover:not(:disabled) {
-  background: #30a050;
-  box-shadow: 0 4px 18px rgba(59,165,93,0.3);
+  background: linear-gradient(135deg, #3db562, var(--success));
+  box-shadow: 0 6px 22px rgba(59,165,93,.35);
 }
 
-/* ── Spin anim ──────────────────────────────────────────── */
-.mdm-spin { display: inline-block; animation: spin 0.7s linear infinite; }
+.mdm-spin { display: inline-block; animation: spin .7s linear infinite; }
 
-/* ── Member count badge ─────────────────────────────────── */
-.member-count-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--accent-dim);
-  color: var(--accent);
-  border-radius: 12px;
-  padding: 3px 12px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  margin-top: 6px;
-}
-
-/* ── Cancel button ──────────────────────────────────────── */
+/* ── Cancel Button ──────────────────────────────────────────── */
 .cancel-button {
-  display: block;
-  width: 100%;
-  padding: 10px;
-  background: var(--danger-dim);
-  color: var(--danger);
-  border: 1px solid rgba(224,55,55,0.2);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-  margin-top: 14px;
+  display: block; width: 100%; padding: 10px;
+  background: var(--danger-dim); color: var(--danger);
+  border: 1px solid rgba(224,55,55,.2); border-radius: var(--radius-md);
+  cursor: pointer; font-weight: 600; font-size: .85rem; margin-top: 12px;
   transition: all var(--t) var(--ease);
 }
 .cancel-button:hover:not(:disabled) {
-  background: var(--danger);
-  color: white;
-  transform: none;
-  box-shadow: none;
+  background: var(--danger); color: white; transform: none; box-shadow: none;
 }
