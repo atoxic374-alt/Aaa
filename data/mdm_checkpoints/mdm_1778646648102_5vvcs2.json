@@ -1,0 +1,12 @@
+{
+  "jobId": "mdm_1778646648102_5vvcs2",
+  "total": 2,
+  "sent": 1,
+  "failed": 1,
+  "done": 2,
+  "startedAt": 1778646648102,
+  "finishedAt": 1778646651256,
+  "speedMode": "normal",
+  "queuePos": 2,
+  "_checkpointPath": "/home/runner/workspace/data/mdm_checkpoints/mdm_1778646648102_5vvcs2.json"
+}

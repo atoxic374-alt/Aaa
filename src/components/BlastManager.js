@@ -533,19 +533,10 @@ export class BlastManager {
       return;
     }
 
-    /* Duplicate checks */
-    const dupTok = this.tokens.find(t => t.token?.trim() === token);
-    if (dupTok) {
-      statusEl.textContent = `✗ Already saved as "${dupTok.name}"`;
-      statusEl.className   = 'blast-add-token-status fail';
-      return;
-    }
+    const dupTok  = this.tokens.find(t => t.token?.trim() === token);
+    if (dupTok) { statusEl.textContent = `✗ Already saved as "${dupTok.name}"`; statusEl.className = 'blast-add-token-status fail'; return; }
     const dupName = this.tokens.find(t => t.name?.toLowerCase() === name.toLowerCase());
-    if (dupName) {
-      statusEl.textContent = `✗ Name "${name}" already exists`;
-      statusEl.className   = 'blast-add-token-status fail';
-      return;
-    }
+    if (dupName) { statusEl.textContent = `✗ Name "${name}" already exists`; statusEl.className = 'blast-add-token-status fail'; return; }
 
     statusEl.textContent = '⏳ Validating…';
     statusEl.className   = 'blast-add-token-status';
@@ -554,20 +545,21 @@ export class BlastManager {
 
     try {
       const res = await window.electronAPI.multiDMValidate([{ name, token }]);
-      if (!res.success || !res.results?.[0]?.valid) {
+      const r   = res.results?.[0];
+      if (!res.success || !r?.valid) {
         statusEl.textContent = '✗ Token invalid or dead — not saved';
         statusEl.className   = 'blast-add-token-status fail';
-        btn.disabled = false;
-        return;
+        btn.disabled = false; return;
       }
       const saveRes = await window.electronAPI.saveToken(name, token);
       if (!saveRes.success) {
         statusEl.textContent = `✗ Save failed: ${saveRes.error}`;
         statusEl.className   = 'blast-add-token-status fail';
-        btn.disabled = false;
-        return;
+        btn.disabled = false; return;
       }
-      this.tokens.push({ name, token });
+      /* store with Discord profile info */
+      const newTok = { name, token, avatar: r.avatar, username: r.username, displayName: r.globalName || r.username };
+      this.tokens.push(newTok);
       this._q('b_accList').innerHTML    = this._renderAccounts();
       this._q('b_accCount').textContent = this.tokens.length;
       this._rebindAccEvents();
@@ -576,24 +568,14 @@ export class BlastManager {
       nameEl.value = ''; tokenEl.value = '';
       showNotification(`"${name}" added & validated ✓`, 'success');
 
-      /* If server blast: try refresh servers with new token */
       if (this.mode === 'server' && !this.servers.length) {
         const sr = await window.electronAPI.getBlastServers();
         if (sr.success && sr.servers?.length) {
           this.servers = sr.servers;
-          const target = this._q('b_sectionTarget');
-          if (target) {
-            const inner = target.querySelector('.blast-server-warning');
-            if (inner) inner.remove();
-            const sel = this._q('b_serverSelect');
-            if (sel) {
-              sr.servers.forEach(s => {
-                const o = document.createElement('option');
-                o.value = s.id; o.textContent = s.name;
-                sel.appendChild(o);
-              });
-            }
-          }
+          const warn = this._q('b_sectionTarget')?.querySelector('.blast-server-warning');
+          if (warn) warn.remove();
+          const sel = this._q('b_serverSelect');
+          if (sel) sr.servers.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; sel.appendChild(o); });
         }
       }
     } catch (e) {
@@ -630,6 +612,10 @@ export class BlastManager {
         const cb    = this._qa('.blast-acc-cb')[i];
         if (r.valid) {
           valid++;
+          /* store Discord profile info on token */
+          this.tokens[i].avatar      = r.avatar;
+          this.tokens[i].username    = r.username;
+          this.tokens[i].displayName = r.globalName || r.username;
           if (badge) { badge.textContent = '✓ valid'; badge.className = 'blast-acc-badge valid'; }
           row?.classList.remove('dead');
         } else {
@@ -695,8 +681,18 @@ export class BlastManager {
       return;
     }
 
+    /* build enriched account list (include avatar/username/displayName) */
     const accounts = Array.from(this._qa('.blast-acc-cb:checked'))
-      .map(cb => ({ name: cb.dataset.name, token: cb.dataset.token }));
+      .map(cb => {
+        const tok = this.tokens.find(t => t.name === cb.dataset.name) || {};
+        return {
+          name:        cb.dataset.name,
+          token:       cb.dataset.token,
+          avatar:      tok.avatar      || null,
+          username:    tok.username    || cb.dataset.name,
+          displayName: tok.displayName || cb.dataset.name,
+        };
+      });
 
     if (!accounts.length) {
       const sec = this._q('b_sectionAccounts');
@@ -777,6 +773,35 @@ export class BlastManager {
     }
   }
 
+  /* ─── Worker card HTML ────────────────────────────────────── */
+  _workerCardHTML(acc, i) {
+    const c    = workerColor(acc.name || `Account ${i + 1}`);
+    const disp = acc.displayName || acc.name || `Account ${i + 1}`;
+    const user = acc.username    ? `@${acc.username}` : '';
+    const avHTML = acc.avatar
+      ? `<img class="blast-w-avatar-img" src="${acc.avatar}" alt=""
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      : '';
+    return `
+    <div class="blast-wcard" id="pm_w${i}" style="--wc:${c}">
+      <div class="blast-w-avatar-wrap" style="--wc:${c}">
+        ${avHTML}
+        <div class="blast-w-avatar-fb" style="${acc.avatar ? 'display:none' : ''}">${initial(acc.name)}</div>
+      </div>
+      <div class="blast-w-body">
+        <div class="blast-w-displayname">${disp}</div>
+        ${user ? `<div class="blast-w-username">${user}</div>` : ''}
+        <div class="blast-w-track"><div class="blast-w-bar" id="pm_wbar${i}"></div></div>
+        <div class="blast-w-stats">
+          <span class="w-ok">✓ <b id="pm_wsent${i}">0</b></span>
+          <span class="w-fail">✗ <b id="pm_wfail${i}">0</b></span>
+          <span class="w-skip">⊘ <b id="pm_wskip${i}">0</b></span>
+        </div>
+      </div>
+      <span class="blast-w-badge wbadge-idle" id="pm_wbadge${i}">idle</span>
+    </div>`;
+  }
+
   /* ─── Progress Modal ──────────────────────────────────────── */
   _showProgressModal(jobId, accountList, total, initialState = null) {
     document.querySelectorAll('.blast-progress-modal-wrap').forEach(m => m.remove());
@@ -786,72 +811,61 @@ export class BlastManager {
     modal.className = 'modal-overlay blast-progress-modal-wrap';
     modal.innerHTML = `
       <div class="modal-content blast-progress-modal">
-        <div class="blast-progress-header">
+
+        <!-- Header -->
+        <div class="bpm-header">
           <div class="mdm-pulse-dot" id="pm_dot"></div>
-          <span class="blast-progress-title">${isServer ? 'Server Blast' : 'DM Blast'} — Live</span>
-          <span class="blast-mode-chip ${isServer ? 'chip-server' : 'chip-dm'}" id="pm_speedChip">${this.selectedSpeed}</span>
+          <span class="bpm-title">${isServer ? 'Server Blast' : 'DM Blast'}</span>
+          <span class="bpm-elapsed">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span id="pm_elapsed">0s</span>
+          </span>
         </div>
 
-        <div class="blast-stats-row">
-          <div class="blast-ost"><span id="pm_total">${total}</span><small>Total</small></div>
-          <div class="blast-ost c-ok">  <span id="pm_sent">0</span>   <small>Sent ✓</small></div>
-          <div class="blast-ost c-fail"><span id="pm_failed">0</span> <small>Failed ✗</small></div>
-          <div class="blast-ost c-warn"><span id="pm_skipped">0</span><small>Skipped</small></div>
-          <div class="blast-ost">       <span id="pm_alive">${accountList.length}</span><small>Active</small></div>
-          <div class="blast-ost c-acc"> <span id="pm_speed">—</span>  <small>msg/s</small></div>
-          <div class="blast-ost">       <span id="pm_eta">—</span>    <small>ETA</small></div>
+        <!-- 4 key stats -->
+        <div class="bpm-stats">
+          <div class="bpm-stat c-ok">
+            <span id="pm_sent">0</span>
+            <small>Sent</small>
+          </div>
+          <div class="bpm-stat c-fail">
+            <span id="pm_failed">0</span>
+            <small>Failed</small>
+          </div>
+          <div class="bpm-stat c-warn">
+            <span id="pm_skipped">0</span>
+            <small>Skipped</small>
+          </div>
+          <div class="bpm-stat c-eta">
+            <span id="pm_eta">—</span>
+            <small>ETA</small>
+          </div>
         </div>
 
+        <!-- Progress bar -->
         <div class="blast-pbar-wrap">
-          <div class="blast-pbar-track"><div class="blast-pbar-fill" id="pm_bar" style="width:0%"></div></div>
-          <div class="blast-pbar-labels"><span id="pm_done">0 / ${total}</span><span id="pm_pct">0%</span></div>
-        </div>
-
-        <div class="blast-split">
-          <div class="blast-col">
-            <div class="blast-col-title">
-              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-              Workers
-            </div>
-            <div class="blast-workers-list" id="pm_workers">
-              ${accountList.map((acc, i) => {
-                const c = workerColor(acc.name || `Account ${i + 1}`);
-                return `<div class="blast-wcard" id="pm_w${i}" style="--wc:${c}">
-                  <div class="blast-w-avatar">${initial(acc.name)}</div>
-                  <div class="blast-w-body">
-                    <div class="blast-w-name">${acc.name || 'Account ' + (i + 1)}</div>
-                    <div class="blast-w-track"><div class="blast-w-bar" id="pm_wbar${i}"></div></div>
-                    <div class="blast-w-stats">
-                      <span class="w-ok">✓<b id="pm_wsent${i}">0</b></span>
-                      <span class="w-fail">✗<b id="pm_wfail${i}">0</b></span>
-                      <span>skip <b id="pm_wskip${i}">0</b></span>
-                    </div>
-                  </div>
-                  <span class="blast-w-badge wbadge-idle" id="pm_wbadge${i}">idle</span>
-                </div>`;
-              }).join('')}
-            </div>
+          <div class="blast-pbar-track">
+            <div class="blast-pbar-fill" id="pm_bar" style="width:0%"></div>
           </div>
-
-          <div class="blast-col">
-            <div class="blast-col-title">
-              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              Live Feed
-              <span class="feed-count-badge" id="pm_feedCount">0</span>
-            </div>
-            <div class="blast-feed" id="pm_feed">
-              <div class="blast-feed-empty">Waiting for activity…</div>
-            </div>
+          <div class="blast-pbar-labels">
+            <span id="pm_done">0 / ${total}</span>
+            <span id="pm_pct">0%</span>
           </div>
         </div>
 
+        <!-- Workers -->
+        <div class="bpm-workers-title">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Accounts (${accountList.length})
+        </div>
+        <div class="blast-workers-list" id="pm_workers">
+          ${accountList.map((acc, i) => this._workerCardHTML(acc, i)).join('')}
+        </div>
+
+        <!-- Finish message -->
         <div class="blast-finish-msg" id="pm_finishMsg"></div>
 
-        <div class="blast-elapsed">
-          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          Elapsed: <span id="pm_elapsed">0s</span>
-        </div>
-
+        <!-- Controls -->
         <div class="blast-ctrl">
           <button class="blast-ctrl-btn ctrl-pause" id="pm_pauseBtn">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
@@ -865,17 +879,14 @@ export class BlastManager {
       </div>`;
     document.body.appendChild(modal);
 
-    /* Helpers inside modal (use modal.querySelector — not document) */
     const mq = id => modal.querySelector(`#${id}`);
 
-    let feedCount = 0, isPaused = initialState?.paused || false;
+    let isPaused   = initialState?.paused || false;
     const dot      = mq('pm_dot');
     const pauseBtn = mq('pm_pauseBtn');
     const stopBtn  = mq('pm_stopBtn');
-    const feedEl   = mq('pm_feed');
-    const feedCnt  = mq('pm_feedCount');
 
-    /* Elapsed */
+    /* Elapsed timer */
     this._startTs = Date.now() - (initialState?.elapsed || 0) * 1000;
     clearInterval(this._elapsedTimer);
     this._elapsedTimer = setInterval(() => {
@@ -884,35 +895,28 @@ export class BlastManager {
       if (el) el.textContent = s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
     }, 1000);
 
-    /* Apply state */
+    /* Apply live state */
     const applyState = st => {
       const done = st.done || 0;
       const pct  = st.total > 0 ? Math.round((done / st.total) * 100) : 0;
-      const skip = (st.workers || []).reduce((s, w) => s + (w.skipped || 0), 0);
+      const skip = (st.workers || []).reduce((a, w) => a + (w.skipped || 0), 0);
 
       mq('pm_bar').style.width  = `${pct}%`;
       mq('pm_pct').textContent  = `${pct}%`;
       mq('pm_done').textContent = `${done} / ${st.total}`;
-
-      animNum(mq('pm_sent'),    st.sent    || 0);
-      animNum(mq('pm_failed'),  st.failed  || 0);
+      animNum(mq('pm_sent'),    st.sent   || 0);
+      animNum(mq('pm_failed'),  st.failed || 0);
       animNum(mq('pm_skipped'), skip);
-      animNum(mq('pm_alive'),   st.alive  ?? accountList.length);
-
-      const spEl = mq('pm_speed');
-      if (spEl) spEl.textContent = (st.speed && +st.speed > 0) ? (+st.speed).toFixed(2) : '—';
       const etaEl = mq('pm_eta');
       if (etaEl) etaEl.textContent = fmtETA(st.eta);
-      const chipEl = mq('pm_speedChip');
-      if (chipEl) chipEl.textContent = st.speedMode || this.selectedSpeed;
 
       isPaused = st.paused;
       if (isPaused) {
-        dot.className = 'mdm-pulse-dot paused';
+        dot.className      = 'mdm-pulse-dot paused';
         pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Resume`;
         pauseBtn.className = 'blast-ctrl-btn ctrl-resume';
       } else if (!st.finished && !st.stopped) {
-        dot.className = 'mdm-pulse-dot active';
+        dot.className      = 'mdm-pulse-dot active';
         pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause`;
         pauseBtn.className = 'blast-ctrl-btn ctrl-pause';
       }
@@ -929,7 +933,7 @@ export class BlastManager {
         animNum(mq(`pm_wfail${i}`), w.failed  || 0);
         animNum(mq(`pm_wskip${i}`), w.skipped || 0);
         if (badge) { badge.textContent = w.status || 'idle'; badge.className = `blast-w-badge ${badgeClass(w)}`; }
-        if (card && w.dead) card.classList.add('dead');
+        if (card)  { if (w.dead) card.classList.add('dead'); card.style.setProperty('opacity', w.dead ? '.3' : ''); }
       });
 
       if (st.finished || st.stopped) {
@@ -939,17 +943,17 @@ export class BlastManager {
         finMsg.textContent = st.stopped ? '⛔ Stopped by user.' : '✅ Blast complete!';
         finMsg.className   = `blast-finish-msg ${st.stopped ? 'finish-stop' : 'finish-ok'}`;
         pauseBtn.style.display = 'none';
-        stopBtn.innerHTML  = 'Close';
+        stopBtn.innerHTML  = '✓ Close';
         stopBtn.className  = 'blast-ctrl-btn ctrl-close';
         stopBtn.style.flex = '1';
         stopBtn.onclick    = () => {
           modal.remove();
           localStorage.removeItem(STORAGE_KEY + '_' + this.mode);
           this.isSending = false;
-          const badge = this._q('b_jobBadge');
-          if (badge) badge.style.display = 'none';
+          const jb = this._q('b_jobBadge');
+          if (jb) jb.style.display = 'none';
           const sb = this._q('b_startBtn');
-          if (sb) { sb.disabled = false; }
+          if (sb) sb.disabled = false;
           const sl = this._q('b_startLabel');
           if (sl) sl.textContent = 'Start Blast';
         };
@@ -961,29 +965,14 @@ export class BlastManager {
 
     if (initialState) applyState(initialState);
 
-    /* Activity SSE */
-    const actSSE = new EventSource(`/api/multi-dm/activity/${jobId}`);
-    this._actSSE = actSSE;
-    actSSE.onmessage = e => {
-      try {
-        const ev = JSON.parse(e.data);
-        if (ev.type !== 'activity') return;
-        this._addFeedItem(feedEl, ev);
-        feedCount++;
-        feedCnt.textContent = feedCount;
-        feedCnt.classList.add('bump');
-        setTimeout(() => feedCnt.classList.remove('bump'), 280);
-      } catch {}
-    };
-
-    /* State SSE */
+    /* SSE streams */
     const sse = new EventSource(`/api/multi-dm/stream/${jobId}`);
     this._sse = sse;
     sse.onmessage = e => { try { applyState(JSON.parse(e.data)); } catch {} };
     sse.onerror   = () => {
       const fin = mq('pm_finishMsg');
       if (fin && !fin.textContent) {
-        fin.textContent = '⚠ Connection lost — reconnecting…';
+        fin.textContent = '⚠ Connection lost…';
         fin.className   = 'blast-finish-msg finish-stop';
       }
     };
@@ -997,41 +986,13 @@ export class BlastManager {
 
     /* Stop */
     stopBtn.addEventListener('click', async () => {
-      if (stopBtn.textContent.trim() === 'Close') return;
+      if (stopBtn.textContent.includes('Close')) return;
       stopBtn.textContent = 'Stopping…'; stopBtn.disabled = true;
       await window.electronAPI.multiDMStop(jobId);
     });
 
-    /* Show badge */
-    const badge = this._q('b_jobBadge');
-    if (badge) badge.style.display = 'flex';
-  }
-
-  /* ─── Feed item ───────────────────────────────────────────── */
-  _addFeedItem(feedEl, ev) {
-    const empty  = feedEl.querySelector('.blast-feed-empty');
-    if (empty) empty.remove();
-    const color  = workerColor(ev.worker || '');
-    const init   = initial(ev.worker || '?');
-    const isOk   = ev.result === 'sent';
-    const isFail = ev.result === 'failed';
-    const time   = new Date().toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-
-    const item = document.createElement('div');
-    item.className = `blast-feed-item ${isOk ? 'feed-sent' : isFail ? 'feed-failed' : 'feed-skip'}`;
-    item.innerHTML = `
-      <div class="feed-acc" style="background:${color}20;border:1px solid ${color}40;">
-        <span style="color:${color};font-size:.7rem;font-weight:700;">${init}</span>
-      </div>
-      <span class="feed-icon">${isOk ? '→' : isFail ? '✗' : '⊘'}</span>
-      <div class="feed-user">
-        <span class="feed-uid">${ev.userId ? `···${ev.userId.slice(-8)}` : '——'}</span>
-        ${ev.reason ? `<span class="feed-reason">${ev.reason}</span>` : ''}
-      </div>
-      <span class="feed-result ${isOk ? 'res-ok' : isFail ? 'res-fail' : 'res-skip'}">${isOk ? 'Sent' : isFail ? 'Failed' : 'Skip'}</span>
-      <span class="feed-time">${time}</span>`;
-
-    feedEl.insertBefore(item, feedEl.firstChild);
-    while (feedEl.children.length > 120) feedEl.removeChild(feedEl.lastChild);
+    /* Show running badge */
+    const jb = this._q('b_jobBadge');
+    if (jb) jb.style.display = 'flex';
   }
 }
