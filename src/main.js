@@ -4,23 +4,21 @@ import { DMManager } from './components/DMManager.js';
 import { ServerManager } from './components/ServerManager.js';
 import { FriendsManager } from './components/FriendsManager.js';
 import { GroupManager } from './components/GroupManager.js';
-import { TrueStudioManager } from './components/TrueStudioManager.js';
 import { showInfoModal } from './utils/ui.js';
 import { copyToClipboard } from './utils/clipboard.js';
 import { getFriendsList } from './utils/discord.js';
 
-window.dmManager        = new DMManager(document.getElementById('dms-page'));
-window.serverManager    = new ServerManager(document.getElementById('servers-page'));
-window.friendsManager   = new FriendsManager(document.getElementById('friends-page'));
-window.groupManager     = new GroupManager(document.getElementById('groups-page'));
-window.trueStudioManager = new TrueStudioManager(document.getElementById('ts-page'));
+window.dmManager     = new DMManager(document.getElementById('dms-page'));
+window.serverManager = new ServerManager(document.getElementById('servers-page'));
+window.friendsManager = new FriendsManager(document.getElementById('friends-page'));
+window.groupManager  = new GroupManager(document.getElementById('groups-page'));
 
 window.copyToClipboard = copyToClipboard;
 window.getFriendsList  = getFriendsList;
 
-const navItems    = document.querySelectorAll('.nav-item');
-const pages       = document.querySelectorAll('.page-container');
-const userProfile = document.getElementById('userProfile');
+const navItems     = document.querySelectorAll('.nav-item');
+const pages        = document.querySelectorAll('.page-container');
+const userProfile  = document.getElementById('userProfile');
 const loginNavItem = document.getElementById('loginNavItem');
 
 function showUserProfile(username) {
@@ -80,11 +78,9 @@ function switchPage(pageId) {
     case 'servers': window.serverManager.refreshServersList();  break;
     case 'dms':     window.dmManager.refreshDMsList();          break;
     case 'groups':  window.groupManager.refreshGroupsList();    break;
-    case 'ts':      window.trueStudioManager.init();            break;
   }
 }
 
-// Init
 toggleNavItems(false);
 switchPage('login');
 
@@ -101,29 +97,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// Window controls
 document.getElementById('minimizeBtn').addEventListener('click', () => window.electronAPI.minimize());
 document.getElementById('maximizeBtn').addEventListener('click', () => window.electronAPI.maximize());
 document.getElementById('closeBtn').addEventListener('click', () => window.electronAPI.close());
 document.getElementById('infoBtn').addEventListener('click', showInfoModal);
 
-// Save token
 document.getElementById('saveTokenBtn').addEventListener('click', () => {
   saveToken(tokenInput.value, status);
 });
 
-// Disconnect
 document.getElementById('disconnectBtn').addEventListener('click', () => {
   hideUserProfile();
   toggleNavItems(false);
   _activePage = null;
   switchPage('login');
-  tokenInput.value  = '';
+  tokenInput.value   = '';
   status.textContent = '';
   status.className   = '';
 });
 
-// Connect
 const connectBtn = document.getElementById('connectBtn');
 const tokenInput = document.getElementById('tokenInput');
 const status     = document.getElementById('status');
@@ -170,7 +162,6 @@ connectBtn.addEventListener('click', async () => {
   }
 });
 
-// Enter key on token input
 tokenInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') connectBtn.click();
 });

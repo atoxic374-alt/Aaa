@@ -882,6 +882,107 @@ button:disabled {
 .error { color: var(--danger); font-size: .85rem; }
 
 /* ══════════════════════════════════════════════════════════════
+   SOCIAL / SUPPORT LINKS — Login Page & Info Modal
+   ══════════════════════════════════════════════════════════════ */
+
+/* Login page bottom links */
+.login-support-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.login-support-sep {
+  color: var(--text-3);
+  font-size: .75rem;
+  user-select: none;
+}
+
+.login-support-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .76rem;
+  font-weight: 500;
+  color: var(--text-3);
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition:
+    color var(--t) var(--ease),
+    background var(--t) var(--ease),
+    border-color var(--t) var(--ease),
+    box-shadow var(--t) var(--ease);
+}
+.login-support-link:hover {
+  color: var(--text);
+  background: var(--bg-3);
+  border-color: var(--border-2);
+}
+/* Discord hover — blurple tint */
+#discordSupportLink:hover {
+  color: #7289da;
+  background: rgba(114,137,218,0.12);
+  border-color: rgba(114,137,218,0.25);
+  box-shadow: 0 0 10px rgba(114,137,218,0.12);
+}
+/* Instagram hover — pink/orange gradient tint */
+#instaSupportLink:hover {
+  color: #e1306c;
+  background: rgba(225,48,108,0.10);
+  border-color: rgba(225,48,108,0.22);
+  box-shadow: 0 0 10px rgba(225,48,108,0.10);
+}
+
+/* Info modal social buttons */
+.info-social-links {
+  display: flex;
+  gap: 7px;
+  margin: 14px 0 10px;
+  justify-content: center;
+}
+
+.info-social-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .8rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  border: 1px solid var(--border-2);
+  color: var(--text-2);
+  background: var(--bg-1);
+  transition:
+    color var(--t) var(--ease),
+    background var(--t) var(--ease),
+    border-color var(--t) var(--ease),
+    box-shadow var(--t) var(--ease),
+    transform var(--t) var(--spring);
+}
+.info-social-btn:hover {
+  transform: translateY(-2px);
+}
+.info-discord-btn:hover {
+  color: #7289da;
+  background: rgba(114,137,218,0.14);
+  border-color: rgba(114,137,218,0.3);
+  box-shadow: 0 4px 14px rgba(114,137,218,0.18);
+}
+.info-insta-btn:hover {
+  color: #e1306c;
+  background: rgba(225,48,108,0.12);
+  border-color: rgba(225,48,108,0.28);
+  box-shadow: 0 4px 14px rgba(225,48,108,0.16);
+}
+
+/* ══════════════════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
