@@ -6,7 +6,7 @@ const { Client } = require('discord.js-selfbot-v13');
 const { getStore } = require('./lib/jsonStore');
 const { tryDecrypt } = require('./lib/crypto');
 const { withUser, currentUserId } = require('./lib/userScope');
-const { createJob } = require('./lib/multiDM');
+const { createJob, validateAccounts } = require('./lib/multiDM');
 
 const app = express();
 const PORT = 5000;
@@ -253,6 +253,17 @@ app.post('/api/multi-dm/stop/:jobId', (req, res) => {
   const job = _multiDMJobs.get(req.params.jobId);
   if (job) { job.stop(); res.json({ success: true }); }
   else res.json({ success: false, error: 'Job not found' });
+});
+
+app.post('/api/multi-dm/validate', async (req, res) => {
+  const { accountList } = req.body;
+  if (!accountList?.length) return res.json({ success: false, error: 'No accounts' });
+  try {
+    const results = await validateAccounts(accountList);
+    res.json({ success: true, results });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => console.log(`Discord Account Manager → http://localhost:${PORT}`));

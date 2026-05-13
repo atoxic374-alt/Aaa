@@ -44,9 +44,10 @@ window.electronAPI = {
   deleteGroupMessage: (channelId, messageId)  => api('DELETE', `/discord/groups/${channelId}/messages/${messageId}`),
 
   // Multi-DM (multi-account server blast)
-  multiDMStart: (accountList, userIds, message, images) =>
+  multiDMStart:    (accountList, userIds, message, images) =>
     api('POST', '/multi-dm/start', { accountList, userIds, message, images }),
-  multiDMStop:  (jobId) => api('POST', `/multi-dm/stop/${jobId}`),
+  multiDMStop:     (jobId) => api('POST', `/multi-dm/stop/${jobId}`),
+  multiDMValidate: (accountList) => api('POST', '/multi-dm/validate', { accountList }),
 
   // TrueStudio (Bot-Studio) Endpoints
   tsState:               () => api('GET', '/ts/state'),
