@@ -742,11 +742,12 @@ export class BlastManager {
 
     this.isSending = true;
     this._jobId    = startRes.jobId;
+    const memberList = this.mode === 'dm' ? this.dmContacts : this.serverMembers;
     localStorage.setItem(STORAGE_KEY + '_' + this.mode, JSON.stringify({
       jobId: startRes.jobId, accountList: accounts, total: startRes.total, mode: this.mode
     }));
 
-    this._showProgressModal(startRes.jobId, accounts, startRes.total);
+    this._showProgressModal(startRes.jobId, accounts, startRes.total, null, memberList);
   }
 
   /* ─── Reconnect ───────────────────────────────────────────── */
@@ -773,11 +774,11 @@ export class BlastManager {
     }
   }
 
-  /* ─── Worker card HTML ────────────────────────────────────── */
+  /* ─── Worker card HTML (single-account full card) ─────────── */
   _workerCardHTML(acc, i) {
     const c    = workerColor(acc.name || `Account ${i + 1}`);
     const disp = acc.displayName || acc.name || `Account ${i + 1}`;
-    const user = acc.username    ? `@${acc.username}` : '';
+    const user = acc.username ? `@${acc.username}` : '';
     const avHTML = acc.avatar
       ? `<img class="blast-w-avatar-img" src="${acc.avatar}" alt=""
               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
@@ -802,20 +803,77 @@ export class BlastManager {
     </div>`;
   }
 
+  /* ─── Worker table row HTML (multi-account compact) ──────── */
+  _workerTableRowHTML(acc, i, total) {
+    const c    = workerColor(acc.name || `Account ${i + 1}`);
+    const disp = acc.displayName || acc.name || `Account ${i + 1}`;
+    const user = acc.username ? `@${acc.username}` : '';
+    const avHTML = acc.avatar
+      ? `<img class="bwt-av-img" src="${acc.avatar}" alt=""
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      : '';
+    return `
+    <div class="bwt-row" id="pm_w${i}" style="--wc:${c}">
+      <div class="bwt-av" style="--wc:${c}">
+        ${avHTML}
+        <div class="bwt-av-fb">${initial(acc.name)}</div>
+      </div>
+      <div class="bwt-info">
+        <div class="bwt-name">${disp}</div>
+        ${user ? `<div class="bwt-user">${user}</div>` : ''}
+      </div>
+      <span class="blast-w-badge wbadge-idle" id="pm_wbadge${i}">idle</span>
+      <div class="bwt-nums">
+        <span class="w-ok">✓<b id="pm_wsent${i}">0</b></span>
+        <span class="w-fail">✗<b id="pm_wfail${i}">0</b></span>
+        <span class="w-skip">⊘<b id="pm_wskip${i}">0</b></span>
+      </div>
+      <div class="bwt-track"><div class="bwt-bar" id="pm_wbar${i}"></div></div>
+    </div>`;
+  }
+
   /* ─── Progress Modal ──────────────────────────────────────── */
-  _showProgressModal(jobId, accountList, total, initialState = null) {
+  _showProgressModal(jobId, accountList, total, initialState = null, memberList = []) {
     document.querySelectorAll('.blast-progress-modal-wrap').forEach(m => m.remove());
 
-    const isServer = this.mode === 'server';
-    const modal    = document.createElement('div');
+    /* Build userId → {displayName, username} map from provided member list */
+    const memberMap = new Map();
+    memberList.forEach(m => {
+      const uid = m.userId || m.id;
+      if (uid) memberMap.set(String(uid), {
+        displayName: m.displayName || m.username || uid,
+        username:    m.username || ''
+      });
+    });
+
+    const isServer  = this.mode === 'server';
+    const multiAcc  = accountList.length > 1;
+    const modal     = document.createElement('div');
     modal.className = 'modal-overlay blast-progress-modal-wrap';
+
+    const workersHTML = multiAcc
+      ? `<div class="bwt-table" id="pm_workers">
+           <div class="bwt-head">
+             <span></span><span>Account</span><span>Status</span>
+             <span class="bwt-hn">Sent/Fail/Skip</span>
+             <span class="bwt-hn">Progress</span>
+           </div>
+           ${accountList.map((acc, i) => this._workerTableRowHTML(acc, i, total)).join('')}
+         </div>`
+      : `<div class="blast-workers-list" id="pm_workers">
+           ${accountList.map((acc, i) => this._workerCardHTML(acc, i)).join('')}
+         </div>`;
+
     modal.innerHTML = `
-      <div class="modal-content blast-progress-modal">
+      <div class="modal-content blast-progress-modal bpm-wide">
 
         <!-- Header -->
         <div class="bpm-header">
           <div class="mdm-pulse-dot" id="pm_dot"></div>
           <span class="bpm-title">${isServer ? 'Server Blast' : 'DM Blast'}</span>
+          <span style="font-size:.7rem;color:var(--text-3);margin-left:auto;margin-right:8px;">
+            <b id="pm_speed_info" style="color:var(--accent);"></b>
+          </span>
           <span class="bpm-elapsed">
             <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <span id="pm_elapsed">0s</span>
@@ -825,20 +883,16 @@ export class BlastManager {
         <!-- 4 key stats -->
         <div class="bpm-stats">
           <div class="bpm-stat c-ok">
-            <span id="pm_sent">0</span>
-            <small>Sent</small>
+            <span id="pm_sent">0</span><small>Sent</small>
           </div>
           <div class="bpm-stat c-fail">
-            <span id="pm_failed">0</span>
-            <small>Failed</small>
+            <span id="pm_failed">0</span><small>Failed</small>
           </div>
           <div class="bpm-stat c-warn">
-            <span id="pm_skipped">0</span>
-            <small>Skipped</small>
+            <span id="pm_skipped">0</span><small>Skipped</small>
           </div>
           <div class="bpm-stat c-eta">
-            <span id="pm_eta">—</span>
-            <small>ETA</small>
+            <span id="pm_eta">—</span><small>ETA</small>
           </div>
         </div>
 
@@ -853,14 +907,31 @@ export class BlastManager {
           </div>
         </div>
 
-        <!-- Workers -->
-        <div class="bpm-workers-title">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Accounts (${accountList.length})
-        </div>
-        <div class="blast-workers-list" id="pm_workers">
-          ${accountList.map((acc, i) => this._workerCardHTML(acc, i)).join('')}
-        </div>
+        <!-- Two-column body: accounts + live feed -->
+        <div class="bpm-body">
+
+          <!-- Left: workers -->
+          <div class="bpm-workers-col">
+            <div class="bpm-col-title">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Accounts (${accountList.length})
+            </div>
+            ${workersHTML}
+          </div>
+
+          <!-- Right: live feed -->
+          <div class="bpm-feed-col">
+            <div class="bpm-col-title">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Live Feed
+              <span class="bpm-feed-count" id="pm_feedCount">0</span>
+            </div>
+            <div class="bpm-feed" id="pm_feed">
+              <div class="bpm-feed-empty" id="pm_feedEmpty">Waiting for messages…</div>
+            </div>
+          </div>
+
+        </div><!-- /bpm-body -->
 
         <!-- Finish message -->
         <div class="blast-finish-msg" id="pm_finishMsg"></div>
@@ -882,6 +953,7 @@ export class BlastManager {
     const mq = id => modal.querySelector(`#${id}`);
 
     let isPaused   = initialState?.paused || false;
+    let feedCount  = 0;
     const dot      = mq('pm_dot');
     const pauseBtn = mq('pm_pauseBtn');
     const stopBtn  = mq('pm_stopBtn');
@@ -895,7 +967,47 @@ export class BlastManager {
       if (el) el.textContent = s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
     }, 1000);
 
-    /* Apply live state */
+    /* ── Live feed item ──────────────────────────────────────── */
+    const addFeedItem = ({ worker, userId, result, reason }) => {
+      const feed     = mq('pm_feed');
+      if (!feed) return;
+      const empty    = mq('pm_feedEmpty');
+      if (empty) empty.remove();
+
+      const info = memberMap.get(String(userId)) || { displayName: userId, username: '' };
+      feedCount++;
+      const countEl = mq('pm_feedCount');
+      if (countEl) countEl.textContent = feedCount;
+
+      const isRL    = result === 'rate_limit';
+      const icon    = result === 'sent'    ? '✓'
+                    : result === 'failed'  ? '✗'
+                    : result === 'skipped' ? '⊘'
+                    : '⏸';
+      const cls     = result === 'sent'    ? 'bfi-ok'
+                    : result === 'failed'  ? 'bfi-fail'
+                    : result === 'skipped' ? 'bfi-skip'
+                    : 'bfi-rl';
+
+      const shortWorker = (worker || '').replace(/^(account\s*)/i, '').slice(0, 12);
+      const reasonStr   = reason ? `<span class="bfi-reason">${reason}</span>` : '';
+      const item        = document.createElement('div');
+      item.className    = `bfi ${cls}`;
+      item.innerHTML    = `
+        <span class="bfi-icon">${icon}</span>
+        <div class="bfi-info">
+          <span class="bfi-name">${info.displayName}</span>
+          ${info.username ? `<span class="bfi-user">@${info.username}</span>` : ''}
+          ${reasonStr}
+        </div>
+        <span class="bfi-acc">${shortWorker}</span>`;
+
+      feed.insertBefore(item, feed.firstChild);
+      /* cap at 80 items */
+      while (feed.children.length > 80) feed.removeChild(feed.lastChild);
+    };
+
+    /* ── Apply live state ────────────────────────────────────── */
     const applyState = st => {
       const done = st.done || 0;
       const pct  = st.total > 0 ? Math.round((done / st.total) * 100) : 0;
@@ -909,6 +1021,9 @@ export class BlastManager {
       animNum(mq('pm_skipped'), skip);
       const etaEl = mq('pm_eta');
       if (etaEl) etaEl.textContent = fmtETA(st.eta);
+
+      const speedEl = mq('pm_speed_info');
+      if (speedEl && st.speed) speedEl.textContent = `${st.speed} msg/s`;
 
       isPaused = st.paused;
       if (isPaused) {
@@ -933,7 +1048,13 @@ export class BlastManager {
         animNum(mq(`pm_wfail${i}`), w.failed  || 0);
         animNum(mq(`pm_wskip${i}`), w.skipped || 0);
         if (badge) { badge.textContent = w.status || 'idle'; badge.className = `blast-w-badge ${badgeClass(w)}`; }
-        if (card)  { if (w.dead) card.classList.add('dead'); card.style.setProperty('opacity', w.dead ? '.3' : ''); }
+
+        /* Rate-limit glow on card */
+        const isRL = w.status && w.status.includes('rate');
+        if (card) {
+          card.classList.toggle('bwt-rl-active', isRL);
+          if (w.dead) card.classList.add('dead');
+        }
       });
 
       if (st.finished || st.stopped) {
@@ -965,7 +1086,7 @@ export class BlastManager {
 
     if (initialState) applyState(initialState);
 
-    /* SSE streams */
+    /* SSE — state stream */
     const sse = new EventSource(`/api/multi-dm/stream/${jobId}`);
     this._sse = sse;
     sse.onmessage = e => { try { applyState(JSON.parse(e.data)); } catch {} };
@@ -975,6 +1096,16 @@ export class BlastManager {
         fin.textContent = '⚠ Connection lost…';
         fin.className   = 'blast-finish-msg finish-stop';
       }
+    };
+
+    /* SSE — activity feed stream */
+    const actSSE = new EventSource(`/api/multi-dm/activity/${jobId}`);
+    this._actSSE = actSSE;
+    actSSE.onmessage = e => {
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev.type === 'activity') addFeedItem(ev);
+      } catch {}
     };
 
     /* Pause/Resume */
