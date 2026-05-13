@@ -9,26 +9,23 @@ import { showInfoModal } from './utils/ui.js';
 import { copyToClipboard } from './utils/clipboard.js';
 import { getFriendsList } from './utils/discord.js';
 
-window.dmManager = new DMManager(document.getElementById('dms-page'));
-window.serverManager = new ServerManager(document.getElementById('servers-page'));
-window.friendsManager = new FriendsManager(document.getElementById('friends-page'));
-window.groupManager = new GroupManager(document.getElementById('groups-page'));
+window.dmManager        = new DMManager(document.getElementById('dms-page'));
+window.serverManager    = new ServerManager(document.getElementById('servers-page'));
+window.friendsManager   = new FriendsManager(document.getElementById('friends-page'));
+window.groupManager     = new GroupManager(document.getElementById('groups-page'));
 window.trueStudioManager = new TrueStudioManager(document.getElementById('ts-page'));
 
 window.copyToClipboard = copyToClipboard;
-window.getFriendsList = getFriendsList;
+window.getFriendsList  = getFriendsList;
 
-const navItems = document.querySelectorAll('.nav-item');
-const pages = document.querySelectorAll('.page-container');
+const navItems    = document.querySelectorAll('.nav-item');
+const pages       = document.querySelectorAll('.page-container');
 const userProfile = document.getElementById('userProfile');
 const loginNavItem = document.getElementById('loginNavItem');
 
 function showUserProfile(username) {
-  const userInitial = document.getElementById('userInitial');
-  const userName = document.getElementById('userName');
-  
-  userInitial.textContent = username.charAt(0).toUpperCase();
-  userName.textContent = username;
+  document.getElementById('userInitial').textContent = username.charAt(0).toUpperCase();
+  document.getElementById('userName').textContent    = username;
   userProfile.classList.add('visible');
 }
 
@@ -37,48 +34,57 @@ function hideUserProfile() {
 }
 
 function toggleNavItems(show) {
-  document.querySelectorAll('.nav-item:not(#loginNavItem)').forEach(item => {
-    item.classList.toggle('hidden', !show);
-  });
+  document.querySelectorAll('.nav-item:not(#loginNavItem)').forEach(item =>
+    item.classList.toggle('hidden', !show));
   loginNavItem.classList.toggle('hidden', show);
 }
 
+let _activePage = null;
+
 function switchPage(pageId) {
+  if (_activePage === pageId) return;
+  _activePage = pageId;
+
   pages.forEach(page => {
-    page.classList.remove('active');
-    if (page.id === `${pageId}-page`) {
-      setTimeout(() => page.classList.add('active'), 50);
+    if (page.classList.contains('active')) {
+      page.style.opacity   = '0';
+      page.style.transform = 'translateY(8px)';
+      setTimeout(() => {
+        page.classList.remove('active');
+        page.style.opacity = page.style.transform = '';
+      }, 180);
     }
   });
 
   navItems.forEach(item => {
-    item.classList.remove('active');
-    if (item.dataset.page === pageId) {
-      item.classList.add('active');
-    }
+    item.classList.toggle('active', item.dataset.page === pageId);
   });
 
-  // Load content based on page
+  const target = document.getElementById(`${pageId}-page`);
+  if (target) {
+    target.style.opacity   = '0';
+    target.style.transform = 'translateY(12px)';
+    setTimeout(() => {
+      target.classList.add('active');
+      requestAnimationFrame(() => {
+        target.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+        target.style.opacity    = '1';
+        target.style.transform  = 'translateY(0)';
+        setTimeout(() => { target.style.transition = target.style.opacity = target.style.transform = ''; }, 250);
+      });
+    }, 180);
+  }
+
   switch (pageId) {
-    case 'friends':
-      window.friendsManager.refreshFriendsList();
-      break;
-    case 'servers':
-      window.serverManager.refreshServersList();
-      break;
-    case 'dms':
-      window.dmManager.refreshDMsList();
-      break;
-    case 'groups':
-      window.groupManager.refreshGroupsList();
-      break;
-    case 'ts':
-      window.trueStudioManager.init();
-      break;
+    case 'friends': window.friendsManager.refreshFriendsList(); break;
+    case 'servers': window.serverManager.refreshServersList();  break;
+    case 'dms':     window.dmManager.refreshDMsList();          break;
+    case 'groups':  window.groupManager.refreshGroupsList();    break;
+    case 'ts':      window.trueStudioManager.init();            break;
   }
 }
 
-// Initialize visibility
+// Init
 toggleNavItems(false);
 switchPage('login');
 
@@ -90,8 +96,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await checkForUpdates();
     await loadSavedTokens();
-  } catch (error) {
-    console.error('Error during initialization:', error);
+  } catch (e) {
+    console.error('Init error:', e);
   }
 });
 
@@ -100,54 +106,71 @@ document.getElementById('minimizeBtn').addEventListener('click', () => window.el
 document.getElementById('maximizeBtn').addEventListener('click', () => window.electronAPI.maximize());
 document.getElementById('closeBtn').addEventListener('click', () => window.electronAPI.close());
 document.getElementById('infoBtn').addEventListener('click', showInfoModal);
-document.getElementById('saveTokenBtn').addEventListener('click', () => saveToken(tokenInput.value, status));
 
-// Disconnect handler
+// Save token
+document.getElementById('saveTokenBtn').addEventListener('click', () => {
+  saveToken(tokenInput.value, status);
+});
+
+// Disconnect
 document.getElementById('disconnectBtn').addEventListener('click', () => {
   hideUserProfile();
   toggleNavItems(false);
+  _activePage = null;
   switchPage('login');
-  tokenInput.value = '';
+  tokenInput.value  = '';
   status.textContent = '';
+  status.className   = '';
 });
 
-// Connect button handler
+// Connect
 const connectBtn = document.getElementById('connectBtn');
 const tokenInput = document.getElementById('tokenInput');
-const status = document.getElementById('status');
+const status     = document.getElementById('status');
 
 connectBtn.addEventListener('click', async () => {
-  const token = tokenInput.value;
+  const token = tokenInput.value.trim();
   if (!token) {
     status.textContent = 'Please enter a token';
-    status.className = 'error';
+    status.className   = 'error';
+    tokenInput.focus();
+    tokenInput.style.borderColor = 'var(--danger)';
+    setTimeout(() => { tokenInput.style.borderColor = ''; }, 1500);
     return;
   }
 
   const btnText = connectBtn.querySelector('.btn-text');
-  const loader = connectBtn.querySelector('.loader');
+  const loader  = connectBtn.querySelector('.loader');
   btnText.style.display = 'none';
-  loader.style.display = 'inline-block';
-  connectBtn.disabled = true;
+  loader.style.display  = 'inline-block';
+  connectBtn.disabled   = true;
+  status.textContent    = '';
+  status.className      = '';
 
   try {
     const result = await window.electronAPI.connectDiscord(token);
     if (result.success) {
       status.textContent = `Connected as ${result.username}`;
-      status.className = 'success';
+      status.className   = 'success';
       showUserProfile(result.username);
       toggleNavItems(true);
+      _activePage = null;
       switchPage('friends');
     } else {
-      status.textContent = result.error;
-      status.className = 'error';
+      status.textContent = result.error || 'Connection failed';
+      status.className   = 'error';
     }
-  } catch (error) {
-    status.textContent = 'Connection failed';
-    status.className = 'error';
+  } catch (e) {
+    status.textContent = 'Connection failed — check your token';
+    status.className   = 'error';
   } finally {
     btnText.style.display = 'inline-block';
-    loader.style.display = 'none';
-    connectBtn.disabled = false;
+    loader.style.display  = 'none';
+    connectBtn.disabled   = false;
   }
+});
+
+// Enter key on token input
+tokenInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') connectBtn.click();
 });

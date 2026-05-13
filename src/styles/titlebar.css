@@ -1,73 +1,84 @@
+/* ── Title Bar ──────────────────────────────────────────── */
 .title-bar {
-  height: var(--title-bar-height);
-  background: var(--bg-primary);
+  height: var(--bar-h);
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 clamp(12px, 1.5vw, 16px);
+  padding: 0 14px;
   -webkit-app-region: drag;
-  border-bottom: 1px solid var(--bg-secondary);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+  position: relative;
+  z-index: 100;
+  flex-shrink: 0;
 }
 
 .title-bar .title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.02em;
   display: flex;
   align-items: center;
-  gap: clamp(6px, 1vw, 8px);
-  font-weight: 500;
-  font-size: clamp(14px, 1vw, 16px);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  gap: 8px;
+}
+
+.title-bar .title-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  animation: title-pulse 3s ease-in-out infinite;
+}
+
+@keyframes title-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-glow); }
+  50%       { opacity: 0.6; box-shadow: 0 0 4px var(--accent-glow); }
 }
 
 .window-controls {
   display: flex;
-  -webkit-app-region: no-drag;
   margin-left: auto;
+  -webkit-app-region: no-drag;
+  gap: 2px;
 }
 
 .window-controls button {
-  width: clamp(32px, 4vw, 46px);
-  height: var(--title-bar-height);
+  width: 40px;
+  height: var(--bar-h);
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--text);
-  opacity: 0.8;
-  transition: all 0.2s;
+  color: var(--text-3);
   padding: 0;
+  border-radius: 0;
+  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+}
+
+.window-controls button:hover:not(:disabled) {
+  background: var(--bg-3);
+  color: var(--text);
+  transform: none;
+  box-shadow: none;
 }
 
 .window-controls button svg {
-  width: clamp(12px, 1.5vw, 16px);
-  height: clamp(12px, 1.5vw, 16px);
+  width: 14px; height: 14px;
 }
 
-.window-controls button:hover {
-  opacity: 1;
-  background: var(--bg-secondary);
+.window-controls .info-button {
+  color: var(--text-3);
+  border-radius: var(--radius-sm);
+  width: 32px;
+  margin-right: 6px;
+}
+.window-controls .info-button:hover:not(:disabled) {
+  background: var(--bg-3);
+  color: var(--accent);
 }
 
-.window-controls button#closeBtn:hover {
-  background: var(--danger);
-}
-
-@media (max-width: 480px) {
-  .title-bar .title {
-    font-size: 14px;
-  }
-  
-  .window-controls button {
-    width: 32px;
-  }
-  
-  .window-controls button svg {
-    width: 12px;
-    height: 12px;
-  }
+#closeBtn:hover:not(:disabled) {
+  background: var(--danger) !important;
+  color: white !important;
 }

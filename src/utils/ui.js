@@ -1,18 +1,41 @@
+export const showNotification = (message, type = 'default') => {
+  // Remove any existing toasts
+  document.querySelectorAll('.copy-notification').forEach(n => n.remove());
+
+  const n = document.createElement('div');
+  n.className = 'copy-notification';
+
+  const icons = {
+    success: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    error:   `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+    default: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="8 5 2 12 8 19"/><polyline points="16 5 22 12 16 19"/></svg>`,
+  };
+
+  const colors = {
+    success: 'var(--success)',
+    error:   'var(--danger)',
+    default: 'var(--accent)',
+  };
+
+  n.style.cssText = `
+    display:flex;align-items:center;gap:8px;
+    border-left:3px solid ${colors[type] || colors.default};
+  `;
+  n.innerHTML = `
+    <span style="color:${colors[type] || colors.default};flex-shrink:0;">${icons[type] || icons.default}</span>
+    <span>${message}</span>
+  `;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 2200);
+};
+
 export const copyToClipboard = async (text) => {
   try {
     await navigator.clipboard.writeText(text);
-    showNotification('Copied to clipboard!');
-  } catch (error) {
-    console.error('Failed to copy:', error);
+    showNotification('Copied to clipboard!', 'success');
+  } catch {
+    showNotification('Copy failed', 'error');
   }
-};
-
-export const showNotification = (message) => {
-  const notification = document.createElement('div');
-  notification.className = 'copy-notification';
-  notification.textContent = message;
-  document.body.appendChild(notification);
-  setTimeout(() => notification.remove(), 2000);
 };
 
 export const showProgressModal = (title, total) => {
@@ -21,41 +44,40 @@ export const showProgressModal = (title, total) => {
 
   const content = document.createElement('div');
   content.className = 'modal-content';
+  content.style.cssText = 'width:min(90%,400px);';
 
-  const titleEl = document.createElement('h2');
-  titleEl.textContent = title;
+  content.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+      <div class="mdm-pulse-dot active"></div>
+      <h2 style="font-size:0.95rem;margin:0;">${title}</h2>
+    </div>
+    <div class="mdm-progress-wrap">
+      <div class="mdm-progress-track">
+        <div class="mdm-progress-fill" id="_pgFill" style="width:0%"></div>
+      </div>
+      <div class="mdm-progress-labels">
+        <span id="_pgText">0 / ${total}</span>
+        <span id="_pgPct">0%</span>
+      </div>
+    </div>`;
 
-  const progressContainer = document.createElement('div');
-  progressContainer.className = 'progress-container';
-
-  const progressBar = document.createElement('div');
-  progressBar.className = 'progress-bar';
-
-  const progress = document.createElement('div');
-  progress.className = 'progress';
-  progress.style.width = '0%';
-
-  const progressText = document.createElement('div');
-  progressText.className = 'progress-text';
-  progressText.textContent = `0/${total}`;
-
-  progressBar.appendChild(progress);
-  progressContainer.appendChild(progressBar);
-  progressContainer.appendChild(progressText);
-
-  content.appendChild(titleEl);
-  content.appendChild(progressContainer);
   modal.appendChild(content);
-
   document.body.appendChild(modal);
 
   return {
-    updateProgress: (completed) => {
-      const percent = (completed / total) * 100;
-      progress.style.width = `${percent}%`;
-      progressText.textContent = `${completed}/${total}`;
+    updateProgress(done) {
+      const pct = Math.round((done / total) * 100);
+      const fill = content.querySelector('#_pgFill');
+      const txt  = content.querySelector('#_pgText');
+      const pctEl = content.querySelector('#_pgPct');
+      if (fill)  fill.style.width  = `${pct}%`;
+      if (txt)   txt.textContent   = `${done} / ${total}`;
+      if (pctEl) pctEl.textContent = `${pct}%`;
     },
-    closeModal: () => modal.remove()
+    closeModal() {
+      content.querySelector('.mdm-pulse-dot')?.classList.replace('active', 'stopped');
+      setTimeout(() => modal.remove(), 350);
+    }
   };
 };
 
@@ -65,100 +87,59 @@ export const showInfoModal = () => {
 
   const content = document.createElement('div');
   content.className = 'modal-content info-modal';
+  content.innerHTML = `
+    <img src="src/icons/app-icon.png" alt="App Icon" onerror="this.style.display='none'">
+    <h2>Discord Account Manager</h2>
+    <p style="font-size:.82rem;color:var(--text-2);margin:6px 0 2px;">Version 1.5.6</p>
+    <p style="font-size:.8rem;color:var(--text-3);">By Ahmed</p>
+    <div class="links" style="margin:16px 0 12px;">
+      <a href="https://discord.gg/ens" id="_infoLink">Discord Community</a>
+    </div>
+    <button id="_infoClose" class="secondary-btn" style="width:100%;">Close</button>`;
 
-  const img = document.createElement('img');
-  img.src = 'src/icons/app-icon.png';
-  img.alt = 'App Icon';
-
-  const title = document.createElement('h2');
-  title.textContent = 'Discord Account Manager';
-
-  const version = document.createElement('p');
-  version.textContent = `Version 1.5.6`;
-
-  const author = document.createElement('p');
-  author.textContent = 'By Ahmed';
-
-  const links = document.createElement('div');
-  links.className = 'links';
-
-  const githubLink = document.createElement('a');
-  githubLink.href = 'https://discord.gg/ens';
-  githubLink.textContent = 'Discord Invite';
-  githubLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    window.electronAPI.openExternal(githubLink.href);
-  });
-
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'secondary-btn';
-  closeBtn.textContent = 'Close';
-
-  closeBtn.style.marginTop = '10px';
-
-  closeBtn.addEventListener('click', () => modal.remove());
-
-  links.appendChild(githubLink);
-  content.appendChild(img);
-  content.appendChild(title);
-  content.appendChild(version);
-  content.appendChild(author);
-  content.appendChild(links);
-  content.appendChild(closeBtn);
   modal.appendChild(content);
-
   document.body.appendChild(modal);
+
+  content.querySelector('#_infoLink').addEventListener('click', e => {
+    e.preventDefault();
+    window.electronAPI.openExternal('https://discord.gg/ens');
+  });
+  content.querySelector('#_infoClose').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 };
 
-export const showInputModal = (title, message) => {
-  return new Promise((resolve) => {
+export const showInputModal = (title, placeholder = '') => {
+  return new Promise(resolve => {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
 
     const content = document.createElement('div');
     content.className = 'modal-content';
+    content.style.cssText = 'width:min(90%,380px);';
+    content.innerHTML = `
+      <h2 style="font-size:.95rem;margin-bottom:14px;">${title}</h2>
+      <input type="text" id="_inputVal" placeholder="${placeholder}" 
+             style="width:100%;padding:10px 12px;background:var(--bg-1);border:1px solid var(--border-2);border-radius:var(--radius-md);color:var(--text);font-family:inherit;font-size:.87rem;outline:none;box-sizing:border-box;margin-bottom:14px;">
+      <div style="display:flex;gap:8px;">
+        <button id="_inputSave" style="flex:1;">Save</button>
+        <button id="_inputCancel" class="secondary-btn" style="flex:1;">Cancel</button>
+      </div>`;
 
-    const titleEl = document.createElement('h2');
-    titleEl.textContent = title;
-
-    const messageEl = document.createElement('p');
-    messageEl.textContent = message;
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'modal-input';
-
-    const buttonGroup = document.createElement('div');
-    buttonGroup.className = 'button-group';
-
-    const saveBtn = document.createElement('button');
-    saveBtn.textContent = 'Save';
-    saveBtn.addEventListener('click', () => {
-      const value = input.value.trim();
-      if (value) {
-        resolve(value);
-        modal.remove();
-      }
-    });
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'secondary-btn';
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.addEventListener('click', () => {
-      resolve(null);
-      modal.remove();
-    });
-
-    buttonGroup.appendChild(saveBtn);
-    buttonGroup.appendChild(cancelBtn);
-
-    content.appendChild(titleEl);
-    content.appendChild(messageEl);
-    content.appendChild(input);
-    content.appendChild(buttonGroup);
     modal.appendChild(content);
-
     document.body.appendChild(modal);
-    input.focus();
+
+    const inp = content.querySelector('#_inputVal');
+    inp.focus();
+
+    const done = (val) => { resolve(val); modal.remove(); };
+
+    content.querySelector('#_inputSave').addEventListener('click', () => {
+      const v = inp.value.trim();
+      if (v) done(v);
+      else { inp.style.borderColor = 'var(--danger)'; inp.focus(); }
+    });
+    content.querySelector('#_inputCancel').addEventListener('click', () => done(null));
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') content.querySelector('#_inputSave').click(); });
+    modal.addEventListener('click', e => { if (e.target === modal) done(null); });
   });
 };
